@@ -10,7 +10,6 @@
 
 import type * as ResendOTPEmailVerification from "../ResendOTPEmailVerification.js";
 import type * as ResendOTPPasswordReset from "../ResendOTPPasswordReset.js";
-import type * as albums from "../albums.js";
 import type * as auth from "../auth.js";
 import type * as barcodeScans from "../barcodeScans.js";
 import type * as chat from "../chat.js";
@@ -21,7 +20,6 @@ import type * as http from "../http.js";
 import type * as items from "../items.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as migrations from "../migrations.js";
-import type * as musicStorage from "../musicStorage.js";
 import type * as parking from "../parking.js";
 import type * as productCache from "../productCache.js";
 import type * as productReviewSubmissions from "../productReviewSubmissions.js";
@@ -44,7 +42,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   ResendOTPEmailVerification: typeof ResendOTPEmailVerification;
   ResendOTPPasswordReset: typeof ResendOTPPasswordReset;
-  albums: typeof albums;
   auth: typeof auth;
   barcodeScans: typeof barcodeScans;
   chat: typeof chat;
@@ -55,7 +52,6 @@ declare const fullApi: ApiFromModules<{
   items: typeof items;
   "lib/auth": typeof lib_auth;
   migrations: typeof migrations;
-  musicStorage: typeof musicStorage;
   parking: typeof parking;
   productCache: typeof productCache;
   productReviewSubmissions: typeof productReviewSubmissions;
