@@ -43,7 +43,16 @@
       "output": "single",
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",
-      "display": "standalone"
+      "display": "standalone",
+      "name": "Shopp",
+      "shortName": "Shopp",
+      "lang": "es",
+      "description": "Listas de compra, productos y aparcamiento.",
+      "themeColor": "#2563eb",
+      "backgroundColor": "#ffffff",
+      "startUrl": "/",
+      "scope": "/",
+      "orientation": "portrait-primary"
     },
     "runtimeVersion": {
       "policy": "appVersion"
