@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../../storage";
 import { useMutation, useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
@@ -72,9 +72,15 @@ export default function ProfileScreen({ navigation }) {
       }
 
       try {
-        const storedAvatar = await AsyncStorage.getItem(key);
-        if (active)
-          setLocalAvatar(storedAvatar ? JSON.parse(storedAvatar) : null);
+        const storedAvatar = await storage.getFile(key);
+        if (!storedAvatar) {
+          if (active) setLocalAvatar(null);
+          return;
+        }
+        const uri =
+          storedAvatar.uri ||
+          (storedAvatar.blob && URL.createObjectURL(storedAvatar.blob));
+        if (active) setLocalAvatar({ ...(storedAvatar.metadata || {}), uri });
       } catch (error) {
         console.warn("[ProfileScreen] local avatar read error", error);
         if (active) setLocalAvatar(null);
@@ -214,8 +220,12 @@ export default function ProfileScreen({ navigation }) {
         height: asset.height || 128,
         updatedAt: Date.now(),
       };
-      await AsyncStorage.setItem(key, JSON.stringify(storedAvatar));
-      setLocalAvatar(storedAvatar);
+      const saved = await storage.setFile(key, asset.uri, storedAvatar);
+      const uri =
+        saved.uri ||
+        (saved.blob && URL.createObjectURL(saved.blob)) ||
+        asset.uri;
+      setLocalAvatar({ ...storedAvatar, uri });
       safeAlert(
         "Avatar actualizado",
         "La imagen se ha guardado en este dispositivo.",
@@ -235,7 +245,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       setAvatarBusy(true);
       const key = getAvatarStorageKey(currentUser);
-      if (key) await AsyncStorage.removeItem(key);
+      if (key) await storage.removeFile(key);
       setLocalAvatar(null);
     } catch (error) {
       safeAlert("No se pudo eliminar", error?.message || "Inténtalo de nuevo.");

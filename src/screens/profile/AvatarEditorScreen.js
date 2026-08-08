@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImageManipulator from "expo-image-manipulator";
+import { removeBackgroundAndAddOutline } from "./avatarImageProcessing";
 
 const EDITOR_SIZE = 320;
 const OUTPUT_FORMATS = [
@@ -46,7 +47,8 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
   const baseScale = Math.max(EDITOR_SIZE / width, EDITOR_SIZE / height);
   const [zoom, setZoom] = useState(1);
   const outputSize = 128;
-  const outputFormat = "jpeg";
+  const outputFormat = "png";
+  const [outlineWidth, setOutlineWidth] = useState(3);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const offsetRef = useRef(offset);
   const startRef = useRef(offset);
@@ -136,7 +138,7 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
   const confirm = async () => {
     const selectedFormat =
       OUTPUT_FORMATS.find((format) => format.key === outputFormat) ||
-      OUTPUT_FORMATS[0];
+      OUTPUT_FORMATS[1];
     const scale = baseScale * zoom;
     const imageLeft = (EDITOR_SIZE - displayed.width) / 2 + offset.x;
     const imageTop = (EDITOR_SIZE - displayed.height) / 2 + offset.y;
@@ -151,15 +153,20 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
       [{ crop }, { resize: { width: outputSize, height: outputSize } }],
       { compress: selectedFormat.compress, format: selectedFormat.saveFormat },
     );
+    const processedUri = await removeBackgroundAndAddOutline(
+      result.uri,
+      outlineWidth,
+    );
     onConfirm({
       ...asset,
-      uri: result.uri,
-      mimeType: selectedFormat.mimeType,
-      fileName: `avatar.${selectedFormat.extension}`,
+      uri: processedUri,
+      mimeType: "image/png",
+      fileName: "avatar.png",
       width: outputSize,
       height: outputSize,
       outputSize,
-      outputFormat: selectedFormat.label,
+      outputFormat: "PNG",
+      outlineWidth,
     });
   };
 
@@ -202,6 +209,23 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
           <View style={styles.zoomScale}>
             <Text style={styles.zoomText}>50%</Text>
             <Text style={styles.zoomText}>300%</Text>
+          </View>
+          <Text style={styles.outlineLabel}>
+            Contorno blanco: {outlineWidth}px
+          </Text>
+          <View style={styles.outlineRow}>
+            {[0, 1, 2, 3, 5, 8].map((value) => (
+              <TouchableOpacity
+                key={value}
+                onPress={() => setOutlineWidth(value)}
+                style={[
+                  styles.outlineButton,
+                  outlineWidth === value && styles.outlineButtonSelected,
+                ]}
+              >
+                <Text style={styles.zoomText}>{value}px</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
         <View style={styles.editor} {...panResponder.panHandlers}>
@@ -290,6 +314,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  outlineLabel: {
+    color: "#cbd5e1",
+    marginTop: 18,
+    marginBottom: 8,
+    fontWeight: "800",
+  },
+  outlineRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  outlineButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "#475569",
+  },
+  outlineButtonSelected: { backgroundColor: "#166534", borderColor: "#4ade80" },
   zoomRow: {
     flexDirection: "row",
     flexWrap: "wrap",
