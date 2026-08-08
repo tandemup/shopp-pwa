@@ -8,6 +8,9 @@ function loadImage(uri) {
 }
 
 export async function removeBackgroundAndAddOutline(uri, outlineWidth = 3) {
+  // Deliberately contains no AI import. @imgly/background-removal uses
+  // dynamic WebAssembly imports that Expo Metro cannot bundle reliably.
+  // The image has already been cropped and converted to PNG by the editor.
   const image = await loadImage(uri);
   const size = Math.min(image.naturalWidth || image.width, 128);
   const canvas = document.createElement("canvas");
@@ -16,27 +19,9 @@ export async function removeBackgroundAndAddOutline(uri, outlineWidth = 3) {
   const context = canvas.getContext("2d", { willReadFrequently: true });
   context.drawImage(image, 0, 0, size, size);
 
-  const pixels = context.getImageData(0, 0, size, size);
-  const data = pixels.data;
-  const sample = (x, y) => {
-    const index = (y * size + x) * 4;
-    return [data[index], data[index + 1], data[index + 2]];
-  };
-  const corners = [sample(0, 0), sample(size - 1, 0), sample(0, size - 1), sample(size - 1, size - 1)];
-  const background = corners.reduce((sum, color) => sum.map((v, i) => v + color[i]), [0, 0, 0]).map((v) => v / corners.length);
-  const distance = (index) => Math.sqrt(
-    (data[index] - background[0]) ** 2 +
-    (data[index + 1] - background[1]) ** 2 +
-    (data[index + 2] - background[2]) ** 2,
-  );
-
-  // Remove pixels close to the colour found at the four corners.
-  for (let index = 0; index < data.length; index += 4) {
-    if (distance(index) < 58) data[index + 3] = 0;
-  }
-  context.putImageData(pixels, 0, 0);
-
-  // Draw a white outline around the remaining subject.
+  // Draw an outline only around transparent pixels adjacent to opaque pixels.
+  // This is useful when the input already contains transparency; it does not
+  // claim to remove a photographic background.
   const subject = context.getImageData(0, 0, size, size);
   const outline = Math.max(0, Math.min(10, Math.round(outlineWidth)));
   if (outline > 0) {
@@ -51,7 +36,10 @@ export async function removeBackgroundAndAddOutline(uri, outlineWidth = 3) {
             const nx = x + ox;
             const ny = y + oy;
             if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
-            if (copy[(ny * size + nx) * 4 + 3] > 0) { found = true; break; }
+            if (copy[(ny * size + nx) * 4 + 3] > 0) {
+              found = true;
+              break;
+            }
           }
         }
         if (found) {
@@ -66,4 +54,3 @@ export async function removeBackgroundAndAddOutline(uri, outlineWidth = 3) {
   }
   return canvas.toDataURL("image/png");
 }
-

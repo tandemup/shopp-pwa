@@ -1,7 +1,7 @@
-// expo-image-manipulator can crop and encode PNG on native platforms, but it
-// cannot inspect pixels. The same interface is kept so a native background
-// removal module can be added without changing ProfileScreen or the editor.
+// The current AI package uses browser APIs and is therefore only bundled by
+// the .web implementation. Native keeps the cropped PNG until a native
+// segmentation module is selected; it must not pretend that a colour-key
+// removal is person segmentation.
 export async function removeBackgroundAndAddOutline(uri) {
   return uri;
 }
-

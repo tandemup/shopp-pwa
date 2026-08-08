@@ -49,11 +49,11 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
   const outputSize = 128;
   const outputFormat = "png";
   const [outlineWidth, setOutlineWidth] = useState(3);
+  const [processing, setProcessing] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const offsetRef = useRef(offset);
   const startRef = useRef(offset);
   const zoomRef = useRef(zoom);
-  const sliderStartRef = useRef(140);
   const displayedRef = useRef(null);
 
   const displayed = useMemo(
@@ -118,68 +118,70 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
     });
   };
 
-  const zoomFromPosition = (x) => {
-    const value = 0.5 + Math.max(0, Math.min(1, x / 280)) * 2.5;
-    selectZoom(Math.round(value * 20) / 20);
-  };
-
-  const zoomSliderResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        sliderStartRef.current = ((zoomRef.current - 0.5) / 2.5) * 280;
-      },
-      onPanResponderMove: (_, gesture) => {
-        zoomFromPosition(sliderStartRef.current + gesture.dx);
-      },
-    }),
-  ).current;
-
   const confirm = async () => {
-    const selectedFormat =
-      OUTPUT_FORMATS.find((format) => format.key === outputFormat) ||
-      OUTPUT_FORMATS[1];
-    const scale = baseScale * zoom;
-    const imageLeft = (EDITOR_SIZE - displayed.width) / 2 + offset.x;
-    const imageTop = (EDITOR_SIZE - displayed.height) / 2 + offset.y;
-    const crop = {
-      originX: Math.max(0, Math.round(-imageLeft / scale)),
-      originY: Math.max(0, Math.round(-imageTop / scale)),
-      width: Math.min(width, Math.round(EDITOR_SIZE / scale)),
-      height: Math.min(height, Math.round(EDITOR_SIZE / scale)),
-    };
-    const result = await ImageManipulator.manipulateAsync(
-      asset.uri,
-      [{ crop }, { resize: { width: outputSize, height: outputSize } }],
-      { compress: selectedFormat.compress, format: selectedFormat.saveFormat },
-    );
-    const processedUri = await removeBackgroundAndAddOutline(
-      result.uri,
-      outlineWidth,
-    );
-    onConfirm({
-      ...asset,
-      uri: processedUri,
-      mimeType: "image/png",
-      fileName: "avatar.png",
-      width: outputSize,
-      height: outputSize,
-      outputSize,
-      outputFormat: "PNG",
-      outlineWidth,
-    });
+    if (processing) return;
+    setProcessing(true);
+    try {
+      const selectedFormat =
+        OUTPUT_FORMATS.find((format) => format.key === outputFormat) ||
+        OUTPUT_FORMATS[1];
+      const scale = baseScale * zoom;
+      const imageLeft = (EDITOR_SIZE - displayed.width) / 2 + offset.x;
+      const imageTop = (EDITOR_SIZE - displayed.height) / 2 + offset.y;
+      const crop = {
+        originX: Math.max(0, Math.round(-imageLeft / scale)),
+        originY: Math.max(0, Math.round(-imageTop / scale)),
+        width: Math.min(width, Math.round(EDITOR_SIZE / scale)),
+        height: Math.min(height, Math.round(EDITOR_SIZE / scale)),
+      };
+      const result = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ crop }, { resize: { width: outputSize, height: outputSize } }],
+        {
+          compress: selectedFormat.compress,
+          format: selectedFormat.saveFormat,
+        },
+      );
+      const processedUri = await removeBackgroundAndAddOutline(
+        result.uri,
+        outlineWidth,
+      );
+      onConfirm({
+        ...asset,
+        uri: processedUri,
+        mimeType: "image/png",
+        fileName: "avatar.png",
+        width: outputSize,
+        height: outputSize,
+        outputSize,
+        outputFormat: "PNG",
+        outlineWidth,
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={onCancel} style={styles.topButton}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={styles.topButton}
+          disabled={processing}
+        >
           <Ionicons name="close" size={25} color="#fff" />
           <Text style={styles.topText}>Cancelar</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Editar avatar</Text>
-        <TouchableOpacity onPress={confirm} style={styles.topButton}>
-          <Text style={styles.topText}>Usar</Text>
+        <TouchableOpacity
+          onPress={confirm}
+          style={styles.topButton}
+          disabled={processing}
+        >
+          <Text style={styles.topText}>
+            {processing ? "Procesando…" : "Usar"}
+          </Text>
           <Ionicons name="checkmark" size={25} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -188,46 +190,6 @@ export default function AvatarEditorScreen({ asset, onCancel, onConfirm }) {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.helpBox}>
-          <Text style={styles.help}>Arrastra la imagen para encuadrarla</Text>
-          <Text style={styles.zoomValue}>{Math.round(zoom * 100)}%</Text>
-          <View style={styles.slider} {...zoomSliderResponder.panHandlers}>
-            <View style={styles.sliderTrack} />
-            <View
-              style={[
-                styles.sliderFill,
-                { width: `${((zoom - 0.5) / 2.5) * 100}%` },
-              ]}
-            />
-            <View
-              style={[
-                styles.sliderThumb,
-                { left: `${((zoom - 0.5) / 2.5) * 100}%` },
-              ]}
-            />
-          </View>
-          <View style={styles.zoomScale}>
-            <Text style={styles.zoomText}>50%</Text>
-            <Text style={styles.zoomText}>300%</Text>
-          </View>
-          <Text style={styles.outlineLabel}>
-            Contorno blanco: {outlineWidth}px
-          </Text>
-          <View style={styles.outlineRow}>
-            {[0, 1, 2, 3, 5, 8].map((value) => (
-              <TouchableOpacity
-                key={value}
-                onPress={() => setOutlineWidth(value)}
-                style={[
-                  styles.outlineButton,
-                  outlineWidth === value && styles.outlineButtonSelected,
-                ]}
-              >
-                <Text style={styles.zoomText}>{value}px</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
         <View style={styles.editor} {...panResponder.panHandlers}>
           <Image
             source={{ uri: asset.uri }}
@@ -314,26 +276,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  outlineLabel: {
-    color: "#cbd5e1",
-    marginTop: 18,
-    marginBottom: 8,
-    fontWeight: "800",
-  },
-  outlineRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 6,
-  },
-  outlineButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: "#475569",
-  },
-  outlineButtonSelected: { backgroundColor: "#166534", borderColor: "#4ade80" },
   zoomRow: {
     flexDirection: "row",
     flexWrap: "wrap",
