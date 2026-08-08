@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMutation, useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
@@ -36,15 +37,15 @@ function formatAccountLabel(currentUser) {
   );
 }
 
+function getAvatarStorageKey(currentUser) {
+  const identity = currentUser?._id || currentUser?.email;
+  return identity ? `shopp.avatar.${identity}` : null;
+}
+
 export default function ProfileScreen({ navigation }) {
   const currentUser = useQuery(api.users.current);
   const profile = useQuery(api.users.getMyProfile);
   const upsertMyProfile = useMutation(api.users.upsertMyProfile);
-  const generateAvatarUploadUrl = useMutation(
-    api.users.generateAvatarUploadUrl,
-  );
-  const setMyAvatar = useMutation(api.users.setMyAvatar);
-  const removeMyAvatar = useMutation(api.users.removeMyAvatar);
 
   const [alias, setAlias] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,12 +54,38 @@ export default function ProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [formTouched, setFormTouched] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [localAvatar, setLocalAvatar] = useState(null);
   const [avatarAsset, setAvatarAsset] = useState(null);
 
   const accountLabel = useMemo(
     () => formatAccountLabel(currentUser),
     [currentUser],
   );
+
+  useEffect(() => {
+    let active = true;
+    const loadLocalAvatar = async () => {
+      const key = getAvatarStorageKey(currentUser);
+      if (!key) {
+        if (active) setLocalAvatar(null);
+        return;
+      }
+
+      try {
+        const storedAvatar = await AsyncStorage.getItem(key);
+        if (active)
+          setLocalAvatar(storedAvatar ? JSON.parse(storedAvatar) : null);
+      } catch (error) {
+        console.warn("[ProfileScreen] local avatar read error", error);
+        if (active) setLocalAvatar(null);
+      }
+    };
+
+    if (currentUser !== undefined) loadLocalAvatar();
+    return () => {
+      active = false;
+    };
+  }, [currentUser]);
 
   useEffect(() => {
     if (profile === undefined) return;
@@ -127,6 +154,23 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  // Edita el avatar ya guardado sin volver a abrir el selector de archivos.
+  // Si todavía no existe, conserva el comportamiento de seleccionar una imagen.
+  const handleEditAvatar = () => {
+    if (localAvatar?.uri) {
+      setAvatarAsset({
+        uri: localAvatar.uri,
+        width: localAvatar.width || 128,
+        height: localAvatar.height || 128,
+        mimeType: localAvatar.mimeType || "image/jpeg",
+        fileName: localAvatar.fileName || "avatar.jpg",
+      });
+      return;
+    }
+
+    handleChooseAvatar();
+  };
+
   const handleTakeAvatarPhoto = async () => {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -159,18 +203,23 @@ export default function ProfileScreen({ navigation }) {
     setAvatarAsset(null);
     try {
       setAvatarBusy(true);
-      const uploadUrl = await generateAvatarUploadUrl({});
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": asset.mimeType || "image/jpeg" },
-        body: blob,
-      });
-      if (!uploadResponse.ok) throw new Error("No se pudo subir la imagen.");
-      const { storageId } = await uploadResponse.json();
-      await setMyAvatar({ storageId });
-      safeAlert("Avatar actualizado", "La imagen de perfil se ha guardado.");
+      const key = getAvatarStorageKey(currentUser);
+      if (!key) throw new Error("No se ha identificado la cuenta.");
+
+      const storedAvatar = {
+        uri: asset.uri,
+        mimeType: asset.mimeType || "image/jpeg",
+        fileName: asset.fileName || "avatar.jpg",
+        width: asset.width || 128,
+        height: asset.height || 128,
+        updatedAt: Date.now(),
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(storedAvatar));
+      setLocalAvatar(storedAvatar);
+      safeAlert(
+        "Avatar actualizado",
+        "La imagen se ha guardado en este dispositivo.",
+      );
     } catch (error) {
       console.warn("[ProfileScreen] avatar error", error);
       safeAlert(
@@ -185,7 +234,9 @@ export default function ProfileScreen({ navigation }) {
   const handleRemoveAvatar = async () => {
     try {
       setAvatarBusy(true);
-      await removeMyAvatar({});
+      const key = getAvatarStorageKey(currentUser);
+      if (key) await AsyncStorage.removeItem(key);
+      setLocalAvatar(null);
     } catch (error) {
       safeAlert("No se pudo eliminar", error?.message || "Inténtalo de nuevo.");
     } finally {
@@ -298,13 +349,13 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.avatarCardTop}>
               <TouchableOpacity
                 style={styles.avatar}
-                onPress={handleChooseAvatar}
+                onPress={handleEditAvatar}
                 disabled={avatarBusy}
                 accessibilityLabel="Editar avatar"
               >
-                {profile?.avatarUrl ? (
+                {localAvatar?.uri ? (
                   <Image
-                    source={{ uri: profile.avatarUrl }}
+                    source={{ uri: localAvatar.uri }}
                     style={styles.avatarImage}
                   />
                 ) : (
@@ -321,7 +372,7 @@ export default function ProfileScreen({ navigation }) {
 
             <View style={styles.avatarLinks}>
               <TouchableOpacity
-                onPress={handleChooseAvatar}
+                onPress={handleEditAvatar}
                 disabled={avatarBusy}
               >
                 <Text style={styles.avatarActionText}>
@@ -334,7 +385,7 @@ export default function ProfileScreen({ navigation }) {
               >
                 <Text style={styles.avatarActionText}>Tomar foto</Text>
               </TouchableOpacity>
-              {profile?.avatarUrl ? (
+              {localAvatar?.uri ? (
                 <TouchableOpacity
                   onPress={handleRemoveAvatar}
                   disabled={avatarBusy}
