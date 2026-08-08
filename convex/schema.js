@@ -71,6 +71,7 @@ export default defineSchema({
   userProfiles: defineTable({
     userId: v.string(),
     alias: v.string(),
+    avatarStorageId: v.optional(v.id("_storage")),
     phone: v.optional(v.string()),
     phoneVisible: v.optional(v.boolean()),
     scanHistorySyncEnabled: v.optional(v.boolean()),

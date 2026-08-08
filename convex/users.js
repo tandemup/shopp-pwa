@@ -71,6 +71,9 @@ export const current = query({
         ? {
             _id: profile._id,
             alias: profile.alias,
+            avatarUrl: profile.avatarStorageId
+              ? await ctx.storage.getUrl(profile.avatarStorageId)
+              : null,
             phone: profile.phone ?? null,
             phoneVisible: profile.phoneVisible ?? false,
             scanHistorySyncEnabled: profile.scanHistorySyncEnabled === true,
@@ -148,6 +151,9 @@ export const getMyProfile = query({
     return {
       _id: profile._id,
       alias: profile.alias,
+      avatarUrl: profile.avatarStorageId
+        ? await ctx.storage.getUrl(profile.avatarStorageId)
+        : null,
       phone: profile.phone ?? null,
       phoneVisible: profile.phoneVisible ?? false,
       scanHistorySyncEnabled: profile.scanHistorySyncEnabled === true,
@@ -204,5 +210,57 @@ export const upsertMyProfile = mutation({
       ok: true,
       profileId,
     };
+  },
+});
+
+export const generateAvatarUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuthUserId(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setMyAvatar = mutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const profile = await getProfileByUserId(ctx, userId);
+
+    if (!profile) {
+      throw new Error("Completa primero tu perfil con un alias.");
+    }
+
+    if (profile.avatarStorageId && profile.avatarStorageId !== args.storageId) {
+      await ctx.storage.delete(profile.avatarStorageId);
+    }
+
+    await ctx.db.patch(profile._id, {
+      avatarStorageId: args.storageId,
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true };
+  },
+});
+
+export const removeMyAvatar = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const profile = await getProfileByUserId(ctx, userId);
+
+    if (!profile) return { ok: true };
+
+    if (profile.avatarStorageId) {
+      await ctx.storage.delete(profile.avatarStorageId);
+    }
+
+    await ctx.db.patch(profile._id, {
+      avatarStorageId: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true };
   },
 });
