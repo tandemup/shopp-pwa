@@ -34,6 +34,15 @@ async function getProfileByUserId(ctx, userId) {
     .first();
 }
 
+async function deleteStorageIfExists(ctx, storageId) {
+  if (!storageId) return;
+
+  const metadata = await ctx.storage.getMetadata(storageId);
+  if (metadata) {
+    await ctx.storage.delete(storageId);
+  }
+}
+
 export const current = query({
   args: {},
   handler: async (ctx) => {
@@ -71,6 +80,7 @@ export const current = query({
         ? {
             _id: profile._id,
             alias: profile.alias,
+            avatarStorageId: profile.avatarStorageId ?? null,
             avatarUrl: profile.avatarStorageId
               ? await ctx.storage.getUrl(profile.avatarStorageId)
               : null,
@@ -151,6 +161,7 @@ export const getMyProfile = query({
     return {
       _id: profile._id,
       alias: profile.alias,
+      avatarStorageId: profile.avatarStorageId ?? null,
       avatarUrl: profile.avatarStorageId
         ? await ctx.storage.getUrl(profile.avatarStorageId)
         : null,
@@ -232,7 +243,7 @@ export const setMyAvatar = mutation({
     }
 
     if (profile.avatarStorageId && profile.avatarStorageId !== args.storageId) {
-      await ctx.storage.delete(profile.avatarStorageId);
+      await deleteStorageIfExists(ctx, profile.avatarStorageId);
     }
 
     await ctx.db.patch(profile._id, {
@@ -253,7 +264,7 @@ export const removeMyAvatar = mutation({
     if (!profile) return { ok: true };
 
     if (profile.avatarStorageId) {
-      await ctx.storage.delete(profile.avatarStorageId);
+      await deleteStorageIfExists(ctx, profile.avatarStorageId);
     }
 
     await ctx.db.patch(profile._id, {

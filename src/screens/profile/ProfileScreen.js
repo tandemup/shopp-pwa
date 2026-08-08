@@ -46,6 +46,11 @@ export default function ProfileScreen({ navigation }) {
   const currentUser = useQuery(api.users.current);
   const profile = useQuery(api.users.getMyProfile);
   const upsertMyProfile = useMutation(api.users.upsertMyProfile);
+  const generateAvatarUploadUrl = useMutation(
+    api.users.generateAvatarUploadUrl,
+  );
+  const setMyAvatar = useMutation(api.users.setMyAvatar);
+  const removeMyAvatar = useMutation(api.users.removeMyAvatar);
 
   const [alias, setAlias] = useState("");
   const [phone, setPhone] = useState("");
@@ -92,6 +97,45 @@ export default function ProfileScreen({ navigation }) {
       active = false;
     };
   }, [currentUser]);
+
+  // La caché local se usa primero. Si no existe, descargamos el avatar de
+  // Convex y guardamos una copia para las siguientes visitas.
+  useEffect(() => {
+    let active = true;
+    const cacheRemoteAvatar = async () => {
+      const remoteUrl = profile?.avatarUrl;
+      const key = getAvatarStorageKey(currentUser);
+      if (!remoteUrl || !key || localAvatar?.uri) return;
+
+      try {
+        const response = await fetch(remoteUrl);
+        if (!response.ok) throw new Error("No se pudo descargar el avatar.");
+        const blob = await response.blob();
+        const metadata = {
+          mimeType: blob.type || "image/png",
+          fileName: "avatar.png",
+          width: 128,
+          height: 128,
+          storageId: profile.avatarStorageId || null,
+          updatedAt: Date.now(),
+        };
+        const saved = await storage.setFile(key, blob, metadata);
+        const uri =
+          saved?.uri ||
+          (saved?.blob && URL.createObjectURL(saved.blob)) ||
+          remoteUrl;
+        if (active) setLocalAvatar({ ...metadata, uri });
+      } catch (error) {
+        console.warn("[ProfileScreen] remote avatar cache error", error);
+        if (active) setLocalAvatar({ uri: remoteUrl, updatedAt: Date.now() });
+      }
+    };
+
+    if (currentUser && profile !== undefined) cacheRemoteAvatar();
+    return () => {
+      active = false;
+    };
+  }, [currentUser, profile, localAvatar?.uri]);
 
   useEffect(() => {
     if (profile === undefined) return;
@@ -220,15 +264,34 @@ export default function ProfileScreen({ navigation }) {
         height: asset.height || 128,
         updatedAt: Date.now(),
       };
-      const saved = await storage.setFile(key, asset.uri, storedAvatar);
+      const uploadUrl = await generateAvatarUploadUrl({});
+      const fileResponse = await fetch(asset.uri);
+      if (!fileResponse.ok) throw new Error("No se pudo leer la imagen.");
+      const blob = await fileResponse.blob();
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": storedAvatar.mimeType },
+        body: blob,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error("No se pudo subir el avatar a Convex.");
+      }
+      const { storageId } = await uploadResponse.json();
+      await setMyAvatar({ storageId });
+
+      // Guardamos el Blob, no solo la URL remota, para permitir el uso local.
+      const saved = await storage.setFile(key, blob, {
+        ...storedAvatar,
+        storageId,
+      });
       const uri =
-        saved.uri ||
-        (saved.blob && URL.createObjectURL(saved.blob)) ||
+        saved?.uri ||
+        (saved?.blob && URL.createObjectURL(saved.blob)) ||
         asset.uri;
-      setLocalAvatar({ ...storedAvatar, uri });
+      setLocalAvatar({ ...storedAvatar, storageId, uri });
       safeAlert(
         "Avatar actualizado",
-        "La imagen se ha guardado en este dispositivo.",
+        "La imagen se ha guardado en Convex y se ha cacheado en este dispositivo.",
       );
     } catch (error) {
       console.warn("[ProfileScreen] avatar error", error);
@@ -246,6 +309,7 @@ export default function ProfileScreen({ navigation }) {
       setAvatarBusy(true);
       const key = getAvatarStorageKey(currentUser);
       if (key) await storage.removeFile(key);
+      await removeMyAvatar({});
       setLocalAvatar(null);
     } catch (error) {
       safeAlert("No se pudo eliminar", error?.message || "Inténtalo de nuevo.");
