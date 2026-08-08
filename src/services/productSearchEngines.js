@@ -18,6 +18,22 @@ export const PRODUCT_SEARCH_ENGINE_LABELS = {
   [PRODUCT_SEARCH_ENGINES.BARCODE_LOOKUP]: "BarcodeLookup",
 };
 
+// Compatibilidad con SearchEngines.js y versiones anteriores del proyecto.
+// SearchEngines.js necesita una lista iterable de identificadores y un mapa
+// de configuración para mostrar los motores disponibles.
+export const PRODUCT_SEARCH_ENGINE_IDS = Object.values(PRODUCT_SEARCH_ENGINES);
+
+export const SEARCH_ENGINES = PRODUCT_SEARCH_ENGINE_IDS.reduce(
+  (result, engineId) => {
+    result[engineId] = {
+      id: engineId,
+      label: PRODUCT_SEARCH_ENGINE_LABELS[engineId],
+    };
+    return result;
+  },
+  {},
+);
+
 export const DEFAULT_PRODUCT_SEARCH_ENGINE =
   PRODUCT_SEARCH_ENGINES.OPEN_FOOD_FACTS;
 
@@ -79,9 +95,12 @@ export async function openProductSearchEngine(engine, barcode) {
     };
   }
 
-  const result = await openExternalUrl(url);
+  // Algunas implementaciones de openExternalUrl no devuelven ningún valor
+  // (por ejemplo, cuando la apertura se delega directamente al navegador).
+  // Normalizamos el resultado para no intentar leer `.ok` sobre undefined.
+  const result = (await openExternalUrl(url)) || { ok: true };
 
-  if (!result.ok) {
+  if (result.ok === false) {
     return {
       ok: false,
       error: "No se pudo abrir el motor de búsqueda.",
