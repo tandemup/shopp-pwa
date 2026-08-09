@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -44,6 +45,24 @@ import { ROUTES } from "@/src/navigation/ROUTES";
 
 function normalizeString(value) {
   return String(value || "").trim();
+}
+
+function safeAlert(title, message, onConfirm) {
+  if (Platform.OS === "web") {
+    const confirmed =
+      typeof window !== "undefined" && window.confirm(`${title}\n\n${message}`);
+
+    if (confirmed) {
+      onConfirm?.();
+    }
+
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: "Cancelar", style: "cancel" },
+    { text: "Eliminar", style: "destructive", onPress: onConfirm },
+  ]);
 }
 
 function hasUsefulProductData(product) {
@@ -131,6 +150,21 @@ function ProductImage({ uri, productName }) {
   );
 }
 
+function CerrarSinGuardar({ navigation, busy = false }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.cancelButton,
+        pressed && styles.cancelButtonPressed,
+      ]}
+      onPress={() => navigation.goBack()}
+      disabled={busy}
+    >
+      <Ionicons name="close-outline" size={18} color="#475467" />
+      <Text style={styles.cancelButtonText}>Cerrar sin guardar</Text>
+    </Pressable>
+  );
+}
 function StatusCard({
   source,
   created,
@@ -226,6 +260,45 @@ function FormField({
   );
 }
 
+const PRODUCT_TYPES = ["Supermercado", "Libros", "Música"];
+
+function ProductTypeSelector({ value, onChange }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>Tipo de producto</Text>
+      <View style={styles.productTypeOptions}>
+        {PRODUCT_TYPES.map((type) => {
+          const selected = value === type;
+
+          return (
+            <Pressable
+              key={type}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Tipo de producto: ${type}`}
+              onPress={() => onChange(type)}
+              style={({ pressed }) => [
+                styles.productTypeOption,
+                selected && styles.productTypeOptionSelected,
+                pressed && styles.productTypeOptionPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.productTypeOptionText,
+                  selected && styles.productTypeOptionTextSelected,
+                ]}
+              >
+                {type}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function GoogleModeIA({ busy, barcode, onPress }) {
   return (
     <Pressable
@@ -294,42 +367,128 @@ function GoogleShopping({ busy, barcode, onPress }) {
   );
 }
 
-function MicrosoftBing({ busy, barcode, onPress }) {
+function ActualizarDesdeInternet({
+  busy,
+  consultingInternet,
+  internetLookupLoading,
+  onPress,
+}) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Buscar producto en Bing"
       style={({ pressed }) => [
-        styles.externalAction,
-        styles.externalActionPrimary,
-        pressed && styles.externalActionPrimaryPressed,
-        (busy || !barcode) && styles.disabledButton,
+        styles.secondaryButton,
+        pressed && styles.secondaryButtonPressed,
+        busy && styles.disabledButton,
       ]}
-      disabled={busy || !barcode}
       onPress={onPress}
+      disabled={busy}
     >
-      <View style={styles.shoppingIcon}>
-        <Ionicons name="cart-outline" size={20} color="#FFFFFF" />
-      </View>
-
-      <View style={styles.externalActionContent}>
-        <Text
-          style={[styles.externalActionTitle, styles.externalActionTitleLight]}
-        >
-          Bing
-        </Text>
-        <Text
-          style={[
-            styles.externalActionDescription,
-            styles.externalActionDescriptionLight,
-          ]}
-        >
-          Precios, tiendas y ofertas
-        </Text>
-      </View>
-
-      <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+      {consultingInternet || internetLookupLoading ? (
+        <ActivityIndicator color="#2563EB" />
+      ) : (
+        <>
+          <Ionicons name="refresh-outline" size={20} color="#2563EB" />
+          <View style={styles.buttonTextBlock}>
+            <Text style={styles.secondaryButtonText}>
+              Actualizar desde internet
+            </Text>
+            <Text style={styles.secondaryButtonHint}>
+              Sustituye los campos con datos externos
+            </Text>
+          </View>
+        </>
+      )}
     </Pressable>
+  );
+}
+
+function ProductInfo({ busy, barcode, dataSource, navigation, product }) {
+  const handleShowProductInfo = useCallback(() => {
+    navigation.navigate(ROUTES.PRODUCT_INFO, {
+      barcode,
+      product: product || null,
+      fromCache: dataSource === "convex",
+    });
+  }, [barcode, dataSource, navigation, product]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.secondaryButton,
+        pressed && styles.secondaryButtonPressed,
+        busy && styles.disabledButton,
+      ]}
+      onPress={handleShowProductInfo}
+      disabled={busy || !barcode}
+    >
+      <Ionicons name="information-circle-outline" size={20} color="#2563EB" />
+      <View style={styles.buttonTextBlock}>
+        <Text style={styles.secondaryButtonText}>
+          Ver información del producto
+        </Text>
+        <Text style={styles.secondaryButtonHint}>
+          Consulta la ficha completa del producto
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function EliminarDelHistorial({ busy, deleting, onDelete }) {
+  const handlePress = useCallback(() => {
+    safeAlert(
+      "Eliminar del historial",
+      "¿Quieres eliminar este producto del historial local? Esta acción no eliminará el registro global de Convex.",
+      onDelete,
+    );
+  }, [onDelete]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.deleteButton,
+        pressed && styles.deleteButtonPressed,
+        busy && styles.disabledButton,
+      ]}
+      onPress={handlePress}
+      disabled={busy}
+    >
+      <Ionicons name="trash-outline" size={18} color="#B42318" />
+      <Text style={styles.deleteButtonText}>
+        {deleting ? "Eliminando..." : "Eliminar del historial local"}
+      </Text>
+    </Pressable>
+  );
+}
+
+function EliminarDelHistorial1({ busy, deleting, onDelete }) {
+  return (
+    <View style={styles.dangerZone}>
+      <View style={styles.dangerZoneHeader}>
+        <Ionicons name="warning-outline" size={18} color="#B42318" />
+        <View style={styles.dangerZoneText}>
+          <Text style={styles.dangerZoneTitle}>Historial local</Text>
+          <Text style={styles.dangerZoneDescription}>
+            El registro global de Convex no se eliminará.
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.deleteButton,
+          pressed && styles.deleteButtonPressed,
+          busy && styles.disabledButton,
+        ]}
+        onPress={onDelete}
+        disabled={busy}
+      >
+        <Ionicons name="trash-outline" size={18} color="#B42318" />
+        <Text style={styles.deleteButtonText}>
+          {deleting ? "Eliminando..." : "Eliminar del historial local"}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -381,6 +540,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("");
+  const [productType, setProductType] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [productUrl, setProductUrl] = useState("");
 
@@ -411,6 +571,9 @@ export default function EditScannedItemScreen({ route, navigation }) {
       setName(getProductDisplayName(nextProduct, barcode));
       setBrand(getProductBrand(nextProduct));
       setCategory(getProductCategory(nextProduct));
+      setProductType(
+        normalizeString(nextProduct.productType || nextProduct.product_type),
+      );
       setImageUrl(getProductImageUrl(nextProduct));
       setProductUrl(getProductUrl(nextProduct, barcode));
     },
@@ -603,6 +766,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           name: normalizedName,
           brand: normalizeString(brand) || undefined,
           category: normalizeString(category) || undefined,
+          productType: normalizeString(productType) || undefined,
           imageUrl: normalizeString(imageUrl) || undefined,
           productUrl: normalizeString(productUrl) || undefined,
           source: "user_review",
@@ -614,6 +778,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           name: normalizedName,
           brand: normalizeString(brand),
           category: normalizeString(category),
+          productType: normalizeString(productType),
           imageUrl: normalizeString(imageUrl),
           url: normalizeString(productUrl),
           productUrl: normalizeString(productUrl),
@@ -632,6 +797,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         name: normalizedName,
         brand: normalizeString(brand) || undefined,
         category: normalizeString(category) || undefined,
+        productType: normalizeString(productType) || undefined,
         imageUrl: normalizeString(imageUrl) || undefined,
         productUrl: normalizeString(productUrl) || undefined,
         source: "manual",
@@ -643,6 +809,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         name: normalizedName,
         brand: normalizeString(brand),
         category: normalizeString(category),
+        productType: normalizeString(productType),
         imageUrl: normalizeString(imageUrl),
         url: normalizeString(productUrl),
         productUrl: normalizeString(productUrl),
@@ -673,6 +840,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
     name,
     brand,
     category,
+    productType,
     imageUrl,
     productUrl,
     saveProductData,
@@ -701,14 +869,6 @@ export default function EditScannedItemScreen({ route, navigation }) {
       setDeleting(false);
     }
   }, [barcode, navigation, scanHistoryStorage]);
-
-  const handleShowProductInfo = useCallback(() => {
-    navigation.navigate(ROUTES.PRODUCT_INFO, {
-      barcode,
-      product: product || null,
-      fromCache: dataSource === "convex",
-    });
-  }, [barcode, dataSource, navigation, product]);
 
   const handleGoogleAIModeSearch = useCallback(async () => {
     if (!barcode) {
@@ -895,11 +1055,6 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 barcode={barcode}
                 onPress={handleGoogleShoppingSearch}
               />
-              <MicrosoftBing
-                busy={busy}
-                barcode={barcode}
-                onPress={handleBingShoppingSearch}
-              />
             </View>
           </View>
 
@@ -935,6 +1090,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Nombre del producto"
+              />
+
+              <ProductTypeSelector
+                value={productType}
+                onChange={setProductType}
               />
 
               <View style={styles.formGrid}>
@@ -1016,131 +1176,35 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
               {isAdmin ? (
                 <>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.secondaryButtonPressed,
-                      busy && styles.disabledButton,
-                    ]}
+                  <ActualizarDesdeInternet
+                    busy={busy}
+                    consultingInternet={consultingInternet}
+                    internetLookupLoading={internetLookupLoading}
                     onPress={() => searchExternalProduct({ silent: false })}
-                    disabled={busy}
-                  >
-                    {consultingInternet || internetLookupLoading ? (
-                      <ActivityIndicator color="#2563EB" />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="refresh-outline"
-                          size={20}
-                          color="#2563EB"
-                        />
-                        <View style={styles.buttonTextBlock}>
-                          <Text style={styles.secondaryButtonText}>
-                            Actualizar desde internet
-                          </Text>
-                          <Text style={styles.secondaryButtonHint}>
-                            Sustituye los campos con datos externos
-                          </Text>
-                        </View>
-                      </>
-                    )}
-                  </Pressable>
-
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.secondaryButtonPressed,
-                      busy && styles.disabledButton,
-                    ]}
-                    onPress={handleShowProductInfo}
-                    disabled={busy || !barcode}
-                  >
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={20}
-                      color="#2563EB"
-                    />
-                    <View style={styles.buttonTextBlock}>
-                      <Text style={styles.secondaryButtonText}>
-                        Ver información del producto
-                      </Text>
-                      <Text style={styles.secondaryButtonHint}>
-                        Consulta la ficha completa del producto
-                      </Text>
-                    </View>
-                  </Pressable>
-
-                  <View style={styles.dangerZone}>
-                    <View style={styles.dangerZoneHeader}>
-                      <Ionicons
-                        name="warning-outline"
-                        size={18}
-                        color="#B42318"
-                      />
-                      <View style={styles.dangerZoneText}>
-                        <Text style={styles.dangerZoneTitle}>
-                          Historial local
-                        </Text>
-                        <Text style={styles.dangerZoneDescription}>
-                          El registro global de Convex no se eliminará.
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.deleteButton,
-                        pressed && styles.deleteButtonPressed,
-                        busy && styles.disabledButton,
-                      ]}
-                      onPress={handleDeleteFromHistory}
-                      disabled={busy}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={18}
-                        color="#B42318"
-                      />
-                      <Text style={styles.deleteButtonText}>
-                        {deleting
-                          ? "Eliminando..."
-                          : "Eliminar del historial local"}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.cancelButton,
-                      pressed && styles.cancelButtonPressed,
-                    ]}
-                    onPress={() => navigation.goBack()}
-                    disabled={saving || deleting}
-                  >
-                    <Ionicons name="close-outline" size={18} color="#475467" />
-                    <Text style={styles.cancelButtonText}>
-                      Cerrar sin guardar
-                    </Text>
-                  </Pressable>
+                  />
+                  <ProductInfo
+                    busy={busy}
+                    barcode={barcode}
+                    dataSource={dataSource}
+                    navigation={navigation}
+                    product={product}
+                  />
+                  <EliminarDelHistorial
+                    busy={busy}
+                    deleting={deleting}
+                    onDelete={handleDeleteFromHistory}
+                  />
+                  <CerrarSinGuardar navigation={navigation} busy={busy} />
                 </>
               ) : (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.deleteButton,
-                    styles.deleteButtonStandalone,
-                    pressed && styles.deleteButtonPressed,
-                    busy && styles.disabledButton,
-                  ]}
-                  onPress={handleDeleteFromHistory}
-                  disabled={busy}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#B42318" />
-                  <Text style={styles.deleteButtonText}>
-                    {deleting
-                      ? "Eliminando..."
-                      : "Eliminar del historial local"}
-                  </Text>
-                </Pressable>
+                <>
+                  <EliminarDelHistorial
+                    busy={busy}
+                    deleting={deleting}
+                    onDelete={handleDeleteFromHistory}
+                  />
+                  <CerrarSinGuardar navigation={navigation} busy={busy} />
+                </>
               )}
             </View>
           </View>
@@ -1513,6 +1577,42 @@ const styles = StyleSheet.create({
   formGridItem: {
     flex: 1,
     minWidth: 0,
+  },
+
+  productTypeOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  productTypeOption: {
+    minHeight: 42,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#D0D5DD",
+    borderRadius: 12,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 14,
+  },
+
+  productTypeOptionSelected: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+
+  productTypeOptionPressed: {
+    opacity: 0.75,
+  },
+
+  productTypeOptionText: {
+    color: "#475467",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  productTypeOptionTextSelected: {
+    color: "#1D4ED8",
+    fontWeight: "900",
   },
 
   field: {

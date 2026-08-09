@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 
@@ -29,6 +30,9 @@ import {
 } from "@/src/services/productLookup";
 
 export default function ProductInfoScreen({ route, navigation }) {
+  const { width } = useWindowDimensions();
+  const isWideScreen = width >= 760;
+  const horizontalPadding = width >= 1100 ? 28 : 16;
   const params = route?.params || {};
 
   const barcode = normalizeBarcode(
@@ -171,7 +175,10 @@ export default function ProductInfoScreen({ route, navigation }) {
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerCard}>
@@ -206,11 +213,16 @@ export default function ProductInfoScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        <View style={styles.productCard}>
+        <View
+          style={[styles.productCard, isWideScreen && styles.productCardWide]}
+        >
           {imageUrl ? (
             <Image
               source={{ uri: imageUrl }}
-              style={styles.productImage}
+              style={[
+                styles.productImage,
+                isWideScreen && styles.productImageWide,
+              ]}
               contentFit="contain"
               cachePolicy="memory-disk"
             />
@@ -220,45 +232,56 @@ export default function ProductInfoScreen({ route, navigation }) {
             </View>
           )}
 
-          <Text style={styles.productName}>{displayName}</Text>
+          <View style={isWideScreen ? styles.productDetailsWide : null}>
+            <Text style={styles.productName}>{displayName}</Text>
 
-          {brand ? (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Marca</Text>
-              <Text style={styles.infoValue}>{brand}</Text>
-            </View>
-          ) : null}
+            {brand ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Marca</Text>
+                <Text style={styles.infoValue}>{brand}</Text>
+              </View>
+            ) : null}
 
-          {category ? (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Categoría</Text>
-              <Text style={styles.infoValue}>{category}</Text>
-            </View>
-          ) : null}
+            {category ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Categoría</Text>
+                <Text style={styles.infoValue}>{category}</Text>
+              </View>
+            ) : null}
 
-          {product?.source ? (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Fuente</Text>
-              <Text style={styles.infoValue}>{product.source}</Text>
-            </View>
-          ) : null}
+            {product?.source ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Fuente</Text>
+                <Text style={styles.infoValue}>{product.source}</Text>
+              </View>
+            ) : null}
 
-          {product?.notFound === true || product?.status === "not_found" ? (
-            <View style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                No se encontró información detallada para este código.
-              </Text>
-            </View>
-          ) : null}
+            {product?.notFound === true || product?.status === "not_found" ? (
+              <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                  No se encontró información detallada para este código.
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        <View style={styles.actions}>
-          <Pressable style={styles.primaryButton} onPress={handleEdit}>
+        <View style={[styles.actions, isWideScreen && styles.actionsWide]}>
+          <Pressable
+            style={[
+              styles.primaryButton,
+              isWideScreen && styles.actionsWideButton,
+            ]}
+            onPress={handleEdit}
+          >
             <Text style={styles.primaryButtonText}>Editar producto</Text>
           </Pressable>
 
           <Pressable
-            style={styles.secondaryButton}
+            style={[
+              styles.secondaryButton,
+              isWideScreen && styles.actionsWideButton,
+            ]}
             onPress={handleGoogleProductSearch}
           >
             <Text style={styles.secondaryButtonText}>
@@ -267,7 +290,10 @@ export default function ProductInfoScreen({ route, navigation }) {
           </Pressable>
 
           <Pressable
-            style={styles.secondaryButton}
+            style={[
+              styles.secondaryButton,
+              isWideScreen && styles.actionsWideButton,
+            ]}
             onPress={handleGoogleShoppingSearch}
           >
             <Text style={styles.secondaryButtonText}>
@@ -277,7 +303,10 @@ export default function ProductInfoScreen({ route, navigation }) {
 
           {productUrl ? (
             <Pressable
-              style={styles.secondaryButton}
+              style={[
+                styles.secondaryButton,
+                isWideScreen && styles.actionsWideButton,
+              ]}
               onPress={handleOpenProductUrl}
             >
               <Text style={styles.secondaryButtonText}>Abrir fuente</Text>
@@ -298,7 +327,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    width: "100%",
+    maxWidth: 1120,
+    alignSelf: "center",
     paddingBottom: 32,
   },
   headerCard: {
@@ -380,12 +411,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  productCardWide: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 24,
+    padding: 24,
+  },
   productImage: {
     width: "100%",
     height: 220,
     marginBottom: 16,
     backgroundColor: "#F9FAFB",
     borderRadius: 16,
+  },
+  productImageWide: {
+    width: 340,
+    height: 340,
+    flexShrink: 0,
+    marginBottom: 0,
+  },
+  productDetailsWide: {
+    flex: 1,
+    minWidth: 0,
   },
   imagePlaceholder: {
     height: 180,
@@ -438,6 +485,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 10,
   },
+  actionsWide: {
+    maxWidth: 560,
+    alignSelf: "center",
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
   primaryButton: {
     backgroundColor: "#111827",
     borderRadius: 16,
@@ -456,6 +510,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#D1D5DB",
+  },
+  actionsWideButton: {
+    flex: 1,
+    minWidth: 240,
   },
   secondaryButtonText: {
     color: "#111827",
