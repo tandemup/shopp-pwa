@@ -2,6 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ROUTES } from "@/src/navigation/ROUTES";
 import ShoppingStack from "@/src/navigation/ShoppingStack";
@@ -13,9 +14,13 @@ import MenuStack from "@/src/navigation/MenuStack";
 const Tab = createBottomTabNavigator();
 
 const SCREEN_BACKGROUND = "#f8fafc";
-const TAB_BAR_HEIGHT = Platform.OS === "web" ? 64 : 72;
+const TAB_BAR_CONTENT_HEIGHT = Platform.OS === "web" ? 58 : 60;
+const TAB_BAR_MIN_BOTTOM_PADDING = Platform.OS === "web" ? 8 : 6;
 
 export default function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_PADDING);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -29,23 +34,35 @@ export default function MainTabs() {
 
         tabBarActiveTintColor: "#2563EB",
         tabBarInactiveTintColor: "#9CA3AF",
+        tabBarHideOnKeyboard: true,
 
         tabBarStyle: {
-          height: TAB_BAR_HEIGHT,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === "ios" ? 18 : 8,
-          backgroundColor: "#FFFFFF",
+          height: TAB_BAR_CONTENT_HEIGHT + bottomPadding,
+          paddingTop: 7,
+          paddingBottom: bottomPadding,
+          backgroundColor: "rgba(255,255,255,0.98)",
           borderTopColor: "#E5E7EB",
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+        },
+
+        tabBarItemStyle: {
+          minHeight: 48,
+          paddingVertical: 2,
+        },
+
+        tabBarIconStyle: {
+          marginTop: 1,
         },
 
         tabBarLabelStyle: {
+          marginTop: 1,
           fontSize: 11,
+          lineHeight: 14,
           fontWeight: "700",
         },
       }}
@@ -100,6 +117,7 @@ export default function MainTabs() {
           ),
         }}
       />
+
       <Tab.Screen
         name={ROUTES.SCANNER_TAB}
         component={ScannerStack}
@@ -119,6 +137,7 @@ export default function MainTabs() {
           ),
         }}
       />
+
       <Tab.Screen
         name={ROUTES.MENU_TAB}
         component={MenuStack}

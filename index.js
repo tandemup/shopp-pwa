@@ -7,6 +7,18 @@ import App from "./App";
 // the environment is set up appropriately
 registerRootComponent(App);
 
+// Mark installed/standalone PWAs so global CSS can remove browser-like
+// viewport behaviour without affecting normal desktop browser usage.
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  const isStandalone =
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true;
+
+  if (isStandalone) {
+    document.documentElement.classList.add("shopp-standalone");
+  }
+}
+
 // Expo Web generates the application shell, while this worker makes the
 // deployed site installable and keeps the shell available after first load.
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {

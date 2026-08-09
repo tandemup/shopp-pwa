@@ -49,7 +49,7 @@
       "lang": "es",
       "description": "Listas de compra, productos y aparcamiento.",
       "themeColor": "#2563eb",
-      "backgroundColor": "#ffffff",
+      "backgroundColor": "#f8fafc",
       "startUrl": "/",
       "scope": "/",
       "orientation": "portrait-primary"
