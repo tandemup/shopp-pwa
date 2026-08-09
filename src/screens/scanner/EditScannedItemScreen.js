@@ -24,10 +24,12 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useProductLookupWithCache } from "@/src/hooks/useProductLookupWithCache";
 import {
-  openBingShoppingSearch,
+  DEFAULT_ENGINE,
+  SEARCH_ENGINES,
   openGoogleAIMode,
-  openGoogleShoppingSearch,
-} from "@/src/screens/settings/SearchEngines";
+  openSearchEngine,
+} from "@/src/constants/searchEngines";
+import { getSearchSettings } from "@/src/storage/settingsStorage";
 
 import {
   getProductBrand,
@@ -291,7 +293,6 @@ function ProductTypeSelector({ value, onChange }) {
     </View>
   );
 }
-
 function GoogleModeIA({ busy, barcode, onPress }) {
   return (
     <Pressable
@@ -321,11 +322,11 @@ function GoogleModeIA({ busy, barcode, onPress }) {
   );
 }
 
-function GoogleShopping({ busy, barcode, onPress }) {
+function ExternalSearchButton({ busy, barcode, engineLabel, onPress }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Buscar producto en Google Shopping"
+      accessibilityLabel={`Buscar producto en ${engineLabel}`}
       style={({ pressed }) => [
         styles.externalAction,
         styles.externalActionPrimary,
@@ -343,15 +344,16 @@ function GoogleShopping({ busy, barcode, onPress }) {
         <Text
           style={[styles.externalActionTitle, styles.externalActionTitleLight]}
         >
-          Google Shopping
+          {engineLabel}
         </Text>
+
         <Text
           style={[
             styles.externalActionDescription,
             styles.externalActionDescriptionLight,
           ]}
         >
-          Precios, tiendas y ofertas
+          Buscar el código de barras en el motor seleccionado
         </Text>
       </View>
 
@@ -535,6 +537,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [localError, setLocalError] = useState(null);
+  const [selectedSearchEngine, setSelectedSearchEngine] =
+    useState(DEFAULT_ENGINE);
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("");
@@ -599,6 +603,31 @@ export default function EditScannedItemScreen({ route, navigation }) {
       setPastingImage(false);
     }
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    getSearchSettings()
+      .then((settings) => {
+        if (!active) return;
+        setSelectedSearchEngine(
+          settings?.selectedProductEngine ||
+            settings?.generalEngine ||
+            DEFAULT_ENGINE,
+        );
+      })
+      .catch(() => {
+        if (active) setSelectedSearchEngine(DEFAULT_ENGINE);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedEngine =
+    SEARCH_ENGINES[selectedSearchEngine] || SEARCH_ENGINES[DEFAULT_ENGINE];
+  const selectedEngineLabel = selectedEngine?.label || "Buscar producto";
 
   const resolvedName = useMemo(() => {
     return (
@@ -916,6 +945,20 @@ export default function EditScannedItemScreen({ route, navigation }) {
     }
   }, [barcode, navigation, scanHistoryStorage]);
 
+  const handleExternalSearch = useCallback(async () => {
+    if (!barcode) {
+      setLocalError("No hay código de barras para buscar.");
+      return;
+    }
+
+    try {
+      setLocalError(null);
+      await openSearchEngine(selectedSearchEngine, barcode);
+    } catch (error) {
+      setLocalError(error?.message || "No se pudo abrir el motor de búsqueda.");
+    }
+  }, [barcode, selectedSearchEngine]);
+
   const handleGoogleAIModeSearch = useCallback(async () => {
     if (!barcode) {
       setLocalError("No hay código de barras para buscar.");
@@ -926,41 +969,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
       setLocalError(null);
       await openGoogleAIMode(barcode);
     } catch (error) {
-      setLocalError(
-        error?.message || "No se pudo abrir la búsqueda de Google.",
-      );
-    }
-  }, [barcode]);
-
-  const handleGoogleShoppingSearch = useCallback(async () => {
-    if (!barcode) {
-      setLocalError("No hay código de barras para buscar.");
-      return;
-    }
-
-    try {
-      setLocalError(null);
-      await openGoogleShoppingSearch(barcode);
-    } catch (error) {
-      setLocalError(
-        error?.message || "No se pudo abrir la búsqueda de Google Shopping.",
-      );
-    }
-  }, [barcode]);
-
-  const handleBingShoppingSearch = useCallback(async () => {
-    if (!barcode) {
-      setLocalError("No hay código de barras para buscar.");
-      return;
-    }
-
-    try {
-      setLocalError(null);
-      await openBingShoppingSearch(barcode);
-    } catch (error) {
-      setLocalError(
-        error?.message || "No se pudo abrir la búsqueda de Bing Shopping.",
-      );
+      setLocalError(error?.message || "No se pudo abrir Google Modo IA.");
     }
   }, [barcode]);
 
@@ -1096,10 +1105,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 barcode={barcode}
                 onPress={handleGoogleAIModeSearch}
               />
-              <GoogleShopping
+              <ExternalSearchButton
                 busy={busy}
                 barcode={barcode}
-                onPress={handleGoogleShoppingSearch}
+                engineLabel={selectedEngineLabel}
+                onPress={handleExternalSearch}
               />
             </View>
           </View>

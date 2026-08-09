@@ -1,1 +1,0 @@
-export { safeMenu } from "./safeAlert";

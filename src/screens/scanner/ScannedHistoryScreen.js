@@ -16,10 +16,35 @@ import { safeQuestion } from "@/src/components/ui/alert/safeQuestion";
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import SearchBar from "@/src/components/features/search/SearchBar";
 
+const HISTORY_FILTERS = [
+  { id: "all", label: "Todos" },
+  { id: "supermarket", label: "Supermercado" },
+  { id: "books", label: "Libros" },
+  { id: "music", label: "Música" },
+];
+
+function getItemGroup(item) {
+  if (item?.isBook === true) return "books";
+
+  const value = String(
+    item?.productType || item?.category || item?.categoryId || "",
+  )
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (value.includes("libro") || value.includes("book")) return "books";
+  if (value.includes("music") || value.includes("musica")) return "music";
+
+  return "supermarket";
+}
+
 export default function ScannedHistoryScreen({ navigation, route }) {
   const [scannedItems, setScannedItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredItems, setFilteredItems] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const isFocused = useIsFocused();
   const scanHistoryStorage = useScannedHistoryStorage();
@@ -67,12 +92,13 @@ export default function ScannedHistoryScreen({ navigation, route }) {
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
 
-    if (!q) {
-      setFilteredItems(scannedItems);
-      return;
-    }
-
     const results = scannedItems.filter((item) => {
+      const matchesGroup =
+        activeFilter === "all" || getItemGroup(item) === activeFilter;
+
+      if (!matchesGroup) return false;
+      if (!q) return true;
+
       const name = String(item.name || "").toLowerCase();
       const barcode = String(item.barcode || "").toLowerCase();
       const brand = String(item.brand || "").toLowerCase();
@@ -81,7 +107,7 @@ export default function ScannedHistoryScreen({ navigation, route }) {
     });
 
     setFilteredItems(results);
-  }, [searchQuery, scannedItems]);
+  }, [searchQuery, scannedItems, activeFilter]);
 
   const handleDelete = (item) => {
     safeQuestion(
@@ -191,6 +217,35 @@ export default function ScannedHistoryScreen({ navigation, route }) {
             style={styles.searchBar}
           />
 
+          <View style={styles.filterRow}>
+            {HISTORY_FILTERS.map((filter) => {
+              const selected = activeFilter === filter.id;
+
+              return (
+                <Pressable
+                  key={filter.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setActiveFilter(filter.id)}
+                  style={({ pressed }) => [
+                    styles.filterChip,
+                    selected && styles.filterChipSelected,
+                    pressed && styles.filterChipPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selected && styles.filterChipTextSelected,
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <FlatList
             data={filteredItems}
             renderItem={renderItem}
@@ -246,6 +301,43 @@ const styles = StyleSheet.create({
 
   searchBar: {
     marginBottom: 16,
+  },
+
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  filterChip: {
+    minHeight: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#D0D5DD",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  filterChipSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+
+  filterChipPressed: {
+    opacity: 0.75,
+  },
+
+  filterChipText: {
+    color: "#475467",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  filterChipTextSelected: {
+    color: "#FFFFFF",
   },
 
   listContent: {
