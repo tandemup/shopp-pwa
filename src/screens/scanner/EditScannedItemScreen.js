@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -42,27 +41,21 @@ import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import { normalizeBarcode } from "@/src/utils/barcodeNormalization";
 import BarcodeLink from "@/src/components/controls/BarcodeLink";
 import { ROUTES } from "@/src/navigation/ROUTES";
+import { safeConfirm } from "@/src/components/ui/alert/safeAlert";
 
 function normalizeString(value) {
   return String(value || "").trim();
 }
 
-function safeAlert(title, message, onConfirm) {
-  if (Platform.OS === "web") {
-    const confirmed =
-      typeof window !== "undefined" && window.confirm(`${title}\n\n${message}`);
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
-    if (confirmed) {
-      onConfirm?.();
-    }
-
-    return;
-  }
-
-  Alert.alert(title, message, [
-    { text: "Cancelar", style: "cancel" },
-    { text: "Eliminar", style: "destructive", onPress: onConfirm },
-  ]);
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () =>
+      reject(new Error("No se pudo leer la imagen pegada."));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function hasUsefulProductData(product) {
@@ -436,10 +429,15 @@ function ProductInfo({ busy, barcode, dataSource, navigation, product }) {
 
 function EliminarDelHistorial({ busy, deleting, onDelete }) {
   const handlePress = useCallback(() => {
-    safeAlert(
+    safeConfirm(
       "Eliminar del historial",
       "¿Quieres eliminar este producto del historial local? Esta acción no eliminará el registro global de Convex.",
       onDelete,
+      {
+        confirmText: "Eliminar",
+        cancelText: "Cancelar",
+        destructive: true,
+      },
     );
   }, [onDelete]);
 
@@ -543,6 +541,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [productType, setProductType] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [productUrl, setProductUrl] = useState("");
+  const [pastingImage, setPastingImage] = useState(false);
 
   const busy =
     userIsLoading ||
@@ -553,6 +552,53 @@ export default function EditScannedItemScreen({ route, navigation }) {
     deleting;
 
   const visibleError = localError || lookupError;
+
+  const handlePasteProductImage = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      setLocalError(
+        "Pegar imágenes desde el portapapeles está disponible en la versión web. En el móvil, utiliza la galería o la cámara.",
+      );
+      return;
+    }
+
+    if (!navigator?.clipboard?.read) {
+      setLocalError(
+        "Este navegador no permite leer imágenes del portapapeles. Guarda la imagen y selecciónala desde la galería.",
+      );
+      return;
+    }
+
+    setPastingImage(true);
+    setLocalError(null);
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+
+      for (const clipboardItem of clipboardItems) {
+        const imageType = clipboardItem.types.find((type) =>
+          type.startsWith("image/"),
+        );
+
+        if (!imageType) continue;
+
+        const imageBlob = await clipboardItem.getType(imageType);
+        const dataUrl = await blobToDataUrl(imageBlob);
+        setImageUrl(dataUrl);
+        return;
+      }
+
+      setLocalError(
+        "El portapapeles no contiene una imagen. Copia primero una imagen del producto.",
+      );
+    } catch (error) {
+      console.error("EditScannedItemScreen paste image error:", error);
+      setLocalError(
+        "No se pudo pegar la imagen. Comprueba que Shopp tiene permiso para acceder al portapapeles.",
+      );
+    } finally {
+      setPastingImage(false);
+    }
+  }, []);
 
   const resolvedName = useMemo(() => {
     return (
@@ -1128,6 +1174,33 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 keyboardType="url"
               />
 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Pegar imagen desde el portapapeles"
+                style={({ pressed }) => [
+                  styles.pasteImageButton,
+                  pressed && styles.pasteImageButtonPressed,
+                  pastingImage && styles.pasteImageButtonDisabled,
+                ]}
+                onPress={handlePasteProductImage}
+                disabled={pastingImage}
+              >
+                {pastingImage ? (
+                  <ActivityIndicator size="small" color="#175CD3" />
+                ) : (
+                  <Ionicons
+                    name="clipboard-outline"
+                    size={18}
+                    color="#175CD3"
+                  />
+                )}
+                <Text style={styles.pasteImageButtonText}>
+                  {pastingImage
+                    ? "Pegando imagen..."
+                    : "Pegar imagen del portapapeles"}
+                </Text>
+              </Pressable>
+
               <FormField
                 label="URL del producto"
                 value={productUrl}
@@ -1642,6 +1715,34 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 92,
     textAlignVertical: "top",
+  },
+
+  pasteImageButton: {
+    minHeight: 46,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#B2CCFF",
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+
+  pasteImageButtonPressed: {
+    opacity: 0.75,
+  },
+
+  pasteImageButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  pasteImageButtonText: {
+    color: "#175CD3",
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   primaryButton: {

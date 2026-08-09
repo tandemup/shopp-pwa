@@ -170,26 +170,26 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
 
-    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    backgroundColor: "rgba(15, 23, 42, 0.18)",
 
     justifyContent: "center",
     alignItems: "center",
 
-    paddingHorizontal: 16,
+    paddingHorizontal: 32,
     paddingVertical: 24,
   },
 
   sheet: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 320,
 
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(250, 250, 250, 0.96)",
 
-    borderRadius: 20,
+    borderRadius: 24,
 
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 8,
 
     borderWidth: Platform.OS === "web" ? StyleSheet.hairlineWidth : 0,
 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
 
     color: "#111827",
 
-    textAlign: "left",
+    textAlign: "center",
   },
 
   message: {
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
 
     color: "#6B7280",
 
-    textAlign: "left",
+    textAlign: "center",
   },
 
   actions: {
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
 
     marginBottom: 8,
 
-    borderRadius: 12,
+    borderRadius: 999,
   },
 
   actionButtonPressed: {

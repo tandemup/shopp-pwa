@@ -138,21 +138,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
 
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 24,
 
-    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    backgroundColor: "rgba(15, 23, 42, 0.42)",
   },
 
   dialog: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 430,
 
     overflow: "hidden",
 
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255, 255, 255, 0.72)",
-    borderRadius: 20,
+    borderColor: "#D6DAE1",
+    borderRadius: 18,
 
     backgroundColor: "#FFFFFF",
 
@@ -163,16 +163,16 @@ const styles = StyleSheet.create({
       height: 10,
     },
 
-    shadowOpacity: 0.24,
-    shadowRadius: 28,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
 
     elevation: 12,
   },
 
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 22,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 20,
   },
 
   title: {
@@ -180,18 +180,18 @@ const styles = StyleSheet.create({
 
     color: "#111827",
 
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: "700",
 
     textAlign: "left",
   },
 
   message: {
-    color: "#4B5563",
+    color: "#374151",
 
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 23,
     fontWeight: "400",
 
     textAlign: "left",
@@ -215,14 +215,14 @@ const styles = StyleSheet.create({
 
     gap: 8,
 
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
 
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F9FAFB",
   },
 
   singleAction: {
@@ -237,15 +237,15 @@ const styles = StyleSheet.create({
     flex: 1,
 
     minWidth: 0,
-    minHeight: 46,
+    minHeight: 44,
 
     alignItems: "center",
     justifyContent: "center",
 
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
 
-    borderWidth: 1,
+    borderWidth: 3,
     borderColor: "#D1D5DB",
     borderRadius: 12,
 
@@ -269,8 +269,9 @@ const styles = StyleSheet.create({
   },
 
   destructiveButton: {
-    borderColor: "#FECACA",
-    backgroundColor: "#FFF7F7",
+    borderColor: "#FCA5A5",
+
+    backgroundColor: "#FFFFFF",
   },
 
   pressedButton: {
