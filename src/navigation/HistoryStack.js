@@ -1,6 +1,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ROUTES } from "./ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import PurchaseHistoryScreen from "@/src/screens/history/PurchaseHistoryScreen";
 import PurchaseDetailScreen from "@/src/screens/history/PurchaseDetailScreen";
@@ -9,13 +10,7 @@ const Stack = createNativeStackNavigator();
 
 export default function HistoryStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerTitleStyle: { fontSize: 20, fontWeight: "700" },
-        headerBackButtonDisplayMode: "minimal",
-      }}
-    >
+    <Stack.Navigator screenOptions={DEFAULT_HEADER_OPTIONS}>
       <Stack.Screen
         name={ROUTES.PURCHASE_HISTORY}
         component={PurchaseHistoryScreen}

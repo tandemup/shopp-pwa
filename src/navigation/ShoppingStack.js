@@ -2,6 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "./ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import ShoppingListsScreen from "@/src/screens/lists/ShoppingListsScreen";
 import ShoppingListScreen from "@/src/screens/lists/ShoppingListScreen";
@@ -17,19 +18,11 @@ import StoreMapScreen from "@/src/screens/stores/StoreMapScreen";
 import MenuScreen from "@/src/screens/settings/MenuScreen";
 import CarrefourTestScreen from "@/src/screens/CarrefourTestScreen";
 
-
 const Stack = createNativeStackNavigator();
 
 export default function ShoppingStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: "papayawhip" },
-        headerTitleAlign: "center",
-        headerTitleStyle: { fontSize: 20, fontWeight: "700" },
-        headerBackButtonDisplayMode: "minimal",
-      }}
-    >
+    <Stack.Navigator screenOptions={DEFAULT_HEADER_OPTIONS}>
       <Stack.Screen
         name={ROUTES.SHOPPING_LISTS}
         component={ShoppingListsScreen}
@@ -68,7 +61,6 @@ export default function ShoppingStack() {
         component={CarrefourTestScreen}
         options={{ title: "Catálogo Carrefour" }}
       />
-
     </Stack.Navigator>
   );
 }

@@ -3,6 +3,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ROUTES } from "./ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import ScannerTabScreen from "@/src/screens/scanner/ScannerTabScreen";
 import ProductBarcodeScannerScreen from "@/src/screens/scanner/ProductBarcodeScannerScreen";
@@ -20,11 +21,7 @@ export default function ScannerStack() {
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.SCANNER_HOME}
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerTitleStyle: { fontSize: 20, fontWeight: "700" },
-        headerBackButtonDisplayMode: "minimal",
-      }}
+      screenOptions={DEFAULT_HEADER_OPTIONS}
     >
       <Stack.Screen
         name={ROUTES.SCANNER_HOME}

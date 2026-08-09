@@ -100,3 +100,18 @@ html.shopp-standalone #root {
   min-height: 100dvh;
   overflow: hidden;
 }
+
+/* --------------------------------------------------------------------------
+   Shopp PWA · chrome superior
+   -------------------------------------------------------------------------- */
+@media (display-mode: standalone) {
+  html,
+  body {
+    background: #fffbf3;
+  }
+
+  /* Safari PWA: evita destellos blancos al hacer overscroll en la parte alta. */
+  body {
+    overscroll-behavior-y: none;
+  }
+}

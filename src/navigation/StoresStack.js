@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ROUTES } from "./ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import StoreInfoScreen from "@/src/screens/stores/StoreInfoScreen";
 import StoresHomeScreen from "@/src/screens/stores/StoresHomeScreen";
@@ -13,16 +14,7 @@ const Stack = createNativeStackNavigator();
 
 export default function StoresStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerTitleStyle: {
-          fontSize: 20,
-          fontWeight: "700",
-        },
-        headerBackButtonDisplayMode: "minimal",
-      }}
-    >
+    <Stack.Navigator screenOptions={DEFAULT_HEADER_OPTIONS}>
       <Stack.Screen
         name={ROUTES.STORE_INFO}
         component={StoreInfoScreen}

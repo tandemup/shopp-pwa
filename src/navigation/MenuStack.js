@@ -2,6 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "@/src/navigation/ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import MenuScreen from "@/src/screens/settings/MenuScreen";
 import SearchEngines from "@/src/screens/settings/SearchEngines";
@@ -9,18 +10,13 @@ import BarcodeSettingsScreen from "@/src/screens/settings/BarcodeSettingsScreen"
 import ProfileScreen from "@/src/screens/profile/ProfileScreen";
 import AdminUsersScreen from "@/src/screens/admin/AdminUsersScreen";
 
-
 const Stack = createNativeStackNavigator();
 
 export default function MenuStack() {
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.MENU}
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerTitleStyle: { fontSize: 20, fontWeight: "700" },
-        headerBackButtonDisplayMode: "minimal",
-      }}
+      screenOptions={DEFAULT_HEADER_OPTIONS}
     >
       <Stack.Screen
         name={ROUTES.MENU}
@@ -57,7 +53,6 @@ export default function MenuStack() {
         component={AdminUsersScreen}
         options={{ title: "Administrar usuarios" }}
       />
-
     </Stack.Navigator>
   );
 }

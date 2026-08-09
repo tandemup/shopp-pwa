@@ -2,6 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "@/src/navigation/ROUTES";
+import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 import ChatScreen from "@/src/screens/chat/ChatScreen";
 import ChatScreenResponsive from "@/src/screens/chat/ChatScreenResponsive";
 import YesterdayNewsScreen from "@/src/screens/chat/YesterdayNewsScreen";
@@ -15,14 +16,7 @@ export default function ChatStack() {
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.CHAT_SCREEN}
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerTitleStyle: {
-          fontSize: 20,
-          fontWeight: "700",
-        },
-        headerBackButtonDisplayMode: "minimal",
-      }}
+      screenOptions={DEFAULT_HEADER_OPTIONS}
     >
       <Stack.Screen
         name={ROUTES.CHAT_SCREEN}
