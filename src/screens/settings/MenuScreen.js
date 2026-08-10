@@ -11,7 +11,6 @@ import {
 
 import { useFocusEffect } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -41,6 +40,7 @@ import {
   clearStorage,
   getUserScopedStorageKey,
   STORAGE_KEYS,
+  storage,
 } from "@/src/storage";
 
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
@@ -202,8 +202,16 @@ function safeJsonParse(value, fallbackValue) {
 }
 
 async function getStoredJson(key, fallbackValue) {
-  const rawValue = await AsyncStorage.getItem(key);
-  return safeJsonParse(rawValue, fallbackValue);
+  try {
+    const value = await storage.getJSON(key, fallbackValue);
+    if (typeof value === "string") {
+      return safeJsonParse(value, fallbackValue);
+    }
+    return value ?? fallbackValue;
+  } catch (error) {
+    console.warn("[MenuScreen] storage read error", error);
+    return fallbackValue;
+  }
 }
 
 function buildExportFilename() {
@@ -902,18 +910,37 @@ export default function MenuScreen({ navigation }) {
         STORAGE_KEYS.LISTS,
       );
 
-      const scopedLists = await getStoredJson(scopedListsKey, null);
-      const legacyLists = await getStoredJson(
-        EXPORT_STORAGE_KEYS.shoppingLists,
-        [],
+      const [scopedLists, currentLists, legacyLists, legacyArchivedLists] =
+        await Promise.all([
+          getStoredJson(scopedListsKey, []),
+          getStoredJson(STORAGE_KEYS.LISTS, []),
+          getStoredJson(EXPORT_STORAGE_KEYS.shoppingLists, []),
+          getStoredJson(EXPORT_STORAGE_KEYS.archivedLists, []),
+        ]);
+
+      // La PWA guarda las listas en IndexedDB a través de `storage`, mientras
+      // que las versiones antiguas usaban claves planas. Leemos ambas fuentes
+      // y deduplicamos por id para que la migración sea segura.
+      const sourceLists = [
+        ...(Array.isArray(scopedLists) ? scopedLists : []),
+        ...(Array.isArray(currentLists) ? currentLists : []),
+        ...(Array.isArray(legacyLists) ? legacyLists : []),
+        ...(Array.isArray(legacyArchivedLists) ? legacyArchivedLists : []),
+      ];
+      const lists = Array.from(
+        new Map(
+          sourceLists.map((list, index) => [
+            String(list?.id || `legacy-list-${index}`),
+            list,
+          ]),
+        ).values(),
       );
-      const lists = Array.isArray(scopedLists) ? scopedLists : legacyLists;
       const items = buildImportItemsFromLists(lists);
 
       if (items.length === 0) {
         safeAlert(
           "Sin items para subir",
-          "No se encontraron items en las listas guardadas en AsyncStorage.",
+          "No se encontraron items en el almacenamiento local de la aplicación.",
         );
         return;
       }

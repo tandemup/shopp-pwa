@@ -777,7 +777,10 @@ const styles = StyleSheet.create({
 
   listContent: {
     flexGrow: 1,
-    width: "100%",
+    // Do not force the content container to 100% when it also has horizontal
+    // padding. On React Native Web that combination can make list rows paint
+    // over the padding after FlatList switches from the empty state to rows.
+    alignSelf: "stretch",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 120,
