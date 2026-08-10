@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFBF3"
     },
     "ios": {
       "supportsTablet": true,
@@ -48,8 +48,8 @@
       "shortName": "Shopp",
       "lang": "es",
       "description": "Listas de compra, productos y aparcamiento.",
-      "themeColor": "#2563eb",
-      "backgroundColor": "#f8fafc",
+      "themeColor": "#FFFBF3",
+      "backgroundColor": "#FFFBF3",
       "startUrl": "/",
       "scope": "/",
       "orientation": "portrait-primary"

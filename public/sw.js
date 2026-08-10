@@ -1,4 +1,4 @@
-const CACHE_NAME = "shopp-app-v2";
+const CACHE_NAME = "shopp-app-v3";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

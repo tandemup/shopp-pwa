@@ -12,6 +12,7 @@
   --shopp-safe-bottom: env(safe-area-inset-bottom, 0px);
   --shopp-safe-left: env(safe-area-inset-left, 0px);
   --shopp-app-background: #f8fafc;
+  --shopp-chrome-background: var(--shopp-chrome-background);
 }
 
 html,
@@ -27,6 +28,8 @@ body,
 }
 
 html {
+  /* Safari/iOS 26 puede derivar el tinte del chrome superior del fondo del documento. */
+  background: var(--shopp-chrome-background);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -95,6 +98,11 @@ a:focus:not(:focus-visible) {
 /* iOS exposes standalone mode through navigator.standalone rather than every
  * CSS media-query implementation. The class is installed from index.js. */
 html.shopp-standalone,
+html.shopp-standalone body {
+  background: var(--shopp-chrome-background);
+}
+
+html.shopp-standalone,
 html.shopp-standalone body,
 html.shopp-standalone #root {
   min-height: 100dvh;
@@ -107,7 +115,7 @@ html.shopp-standalone #root {
 @media (display-mode: standalone) {
   html,
   body {
-    background: #fffbf3;
+    background: var(--shopp-chrome-background);
   }
 
   /* Safari PWA: evita destellos blancos al hacer overscroll en la parte alta. */
