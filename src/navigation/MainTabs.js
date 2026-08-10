@@ -14,10 +14,10 @@ import MenuStack from "@/src/navigation/MenuStack";
 const Tab = createBottomTabNavigator();
 
 const SCREEN_BACKGROUND = "#f8fafc";
-const TAB_BAR_CONTENT_HEIGHT = Platform.OS === "web" ? 64 : 62;
-const TAB_BAR_MIN_BOTTOM_PADDING = Platform.OS === "web" ? 10 : 8;
+const TAB_BAR_CONTENT_HEIGHT = Platform.OS === "web" ? 78 : 70;
+const TAB_BAR_MIN_BOTTOM_PADDING = Platform.OS === "web" ? 12 : 10;
 
-const WEB_SAFE_BOTTOM = "max(env(safe-area-inset-bottom, 0px), 10px)";
+const WEB_SAFE_BOTTOM = "max(env(safe-area-inset-bottom, 0px), 12px)";
 const WEB_TAB_BAR_HEIGHT = `calc(${TAB_BAR_CONTENT_HEIGHT}px + env(safe-area-inset-bottom, 0px))`;
 
 export default function MainTabs() {
@@ -47,7 +47,7 @@ export default function MainTabs() {
 
         tabBarStyle: {
           height: tabBarHeight,
-          paddingTop: 6,
+          paddingTop: 9,
           paddingBottom: tabBarBottomPadding,
           backgroundColor:
             Platform.OS === "web" ? "rgba(255,255,255,0.94)" : "#FFFFFF",
@@ -67,21 +67,21 @@ export default function MainTabs() {
         },
 
         tabBarItemStyle: {
-          minHeight: 50,
-          paddingTop: 2,
-          paddingBottom: 1,
+          minHeight: 60,
+          paddingTop: 3,
+          paddingBottom: 3,
         },
 
         tabBarIconStyle: {
           marginTop: 0,
-          marginBottom: 1,
+          marginBottom: 3,
         },
 
         tabBarLabelStyle: {
           marginTop: 0,
-          marginBottom: 1,
-          fontSize: 11.5,
-          lineHeight: 14,
+          marginBottom: 2,
+          fontSize: 12.5,
+          lineHeight: 16,
           fontWeight: "600",
         },
       }}
@@ -92,7 +92,7 @@ export default function MainTabs() {
         options={{
           title: "Shopping",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart" color={color} size={Math.min(size, 25)} />
+            <Ionicons name="cart" color={color} size={Math.min(size, 29)} />
           ),
         }}
       />
@@ -114,7 +114,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="storefront"
-              size={Math.min(size, 24)}
+              size={Math.min(size, 28)}
               color={color}
             />
           ),
@@ -138,7 +138,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="chatbox-ellipses-sharp"
-              size={Math.min(size, 24)}
+              size={Math.min(size, 28)}
               color={color}
             />
           ),
@@ -160,7 +160,7 @@ export default function MainTabs() {
         options={{
           title: "Scanner",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barcode" color={color} size={Math.min(size, 25)} />
+            <Ionicons name="barcode" color={color} size={Math.min(size, 29)} />
           ),
         }}
       />
@@ -183,7 +183,7 @@ export default function MainTabs() {
         options={{
           title: "Menu",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="menu" size={Math.min(size, 26)} color={color} />
+            <Ionicons name="menu" size={Math.min(size, 30)} color={color} />
           ),
         }}
       />
