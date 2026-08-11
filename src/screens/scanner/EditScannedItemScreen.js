@@ -60,6 +60,91 @@ function blobToDataUrl(blob) {
   });
 }
 
+function getDataUrlSizeBytes(value) {
+  if (!value || !value.startsWith("data:") || !value.includes(";base64,")) {
+    return null;
+  }
+
+  const base64 = value.slice(value.indexOf(",") + 1);
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+function formatKilobytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return null;
+  }
+
+  return `${(bytes / 1024).toLocaleString("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} kB`;
+}
+
+function resizeImageBlob(blob, maxSize = 128) {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      reject(
+        new Error("El redimensionado de imágenes solo está disponible en Web."),
+      );
+      return;
+    }
+
+    const objectUrl = window.URL.createObjectURL(blob);
+    const image = new window.Image();
+
+    const cleanup = () => {
+      window.URL.revokeObjectURL(objectUrl);
+    };
+
+    image.onload = () => {
+      const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
+      const scale = Math.min(1, maxSize / largestSide);
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        cleanup();
+        reject(
+          new Error("No se pudo preparar el redimensionado de la imagen."),
+        );
+        return;
+      }
+
+      context.drawImage(image, 0, 0, width, height);
+
+      canvas.toBlob(
+        (resizedBlob) => {
+          cleanup();
+
+          if (!resizedBlob) {
+            reject(new Error("No se pudo redimensionar la imagen."));
+            return;
+          }
+
+          resolve(resizedBlob);
+        },
+        "image/jpeg",
+        0.86,
+      );
+    };
+
+    image.onerror = () => {
+      cleanup();
+      reject(new Error("No se pudo cargar la imagen copiada."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 function hasUsefulProductData(product) {
   if (!product) {
     return false;
@@ -71,7 +156,8 @@ function hasUsefulProductData(product) {
     normalizeString(product.brand) ||
     normalizeString(product.brands) ||
     normalizeString(product.imageUrl) ||
-    normalizeString(product.image_url),
+    normalizeString(product.image_url) ||
+    normalizeString(product.thumbnailUri),
   );
 }
 
@@ -544,8 +630,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [thumbnailUri, setThumbnailUri] = useState("");
   const [productUrl, setProductUrl] = useState("");
   const [pastingImage, setPastingImage] = useState(false);
+  const [clipboardImageAvailable, setClipboardImageAvailable] = useState(false);
+  const [imageSizeBytes, setImageSizeBytes] = useState(null);
+  const [thumbnailSizeBytes, setThumbnailSizeBytes] = useState(null);
 
   const busy =
     userIsLoading ||
@@ -557,6 +647,68 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
   const visibleError = localError || lookupError;
 
+  useEffect(() => {
+    setImageSizeBytes(getDataUrlSizeBytes(imageUrl));
+    setThumbnailSizeBytes(getDataUrlSizeBytes(thumbnailUri));
+  }, [imageUrl, thumbnailUri]);
+
+  const readClipboardImage = useCallback(async () => {
+    if (
+      Platform.OS !== "web" ||
+      typeof navigator === "undefined" ||
+      !navigator.clipboard?.read
+    ) {
+      return false;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      const hasImage = clipboardItems.some((clipboardItem) =>
+        clipboardItem.types?.some((type) => type.startsWith("image/")),
+      );
+
+      setClipboardImageAvailable(hasImage);
+      return hasImage;
+    } catch {
+      // Safari y algunos contextos HTTP exigen una acción explícita del
+      // usuario antes de permitir la lectura del portapapeles.
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handlePaste = (event) => {
+      const hasImage = Array.from(event.clipboardData?.items || []).some(
+        (item) => item.kind === "file" && item.type?.startsWith("image/"),
+      );
+
+      if (hasImage) {
+        setClipboardImageAvailable(true);
+      }
+    };
+
+    const handleWindowFocus = () => {
+      void readClipboardImage();
+    };
+
+    window.addEventListener("paste", handlePaste);
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("pageshow", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleWindowFocus);
+    void readClipboardImage();
+
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("pageshow", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleWindowFocus);
+    };
+  }, [readClipboardImage]);
+
   const handlePasteProductImage = useCallback(async () => {
     if (Platform.OS !== "web") {
       setLocalError(
@@ -565,7 +717,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
       return;
     }
 
-    if (!navigator?.clipboard?.read) {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
       setLocalError(
         "Este navegador no permite leer imágenes del portapapeles. Guarda la imagen y selecciónala desde la galería.",
       );
@@ -586,16 +738,28 @@ export default function EditScannedItemScreen({ route, navigation }) {
         if (!imageType) continue;
 
         const imageBlob = await clipboardItem.getType(imageType);
-        const dataUrl = await blobToDataUrl(imageBlob);
-        setImageUrl(dataUrl);
+        const [thumbnailBlob, detailBlob] = await Promise.all([
+          resizeImageBlob(imageBlob, 64),
+          resizeImageBlob(imageBlob, 256),
+        ]);
+        const [thumbnailDataUrl, detailDataUrl] = await Promise.all([
+          blobToDataUrl(thumbnailBlob),
+          blobToDataUrl(detailBlob),
+        ]);
+
+        setThumbnailUri(thumbnailDataUrl);
+        setImageUrl(detailDataUrl);
+        setClipboardImageAvailable(false);
         return;
       }
 
       setLocalError(
         "El portapapeles no contiene una imagen. Copia primero una imagen del producto.",
       );
+      setClipboardImageAvailable(false);
     } catch (error) {
       console.error("EditScannedItemScreen paste image error:", error);
+      setClipboardImageAvailable(false);
       setLocalError(
         "No se pudo pegar la imagen. Comprueba que Shopp tiene permiso para acceder al portapapeles.",
       );
@@ -650,6 +814,9 @@ export default function EditScannedItemScreen({ route, navigation }) {
         normalizeString(nextProduct.productType || nextProduct.product_type),
       );
       setImageUrl(getProductImageUrl(nextProduct));
+      setThumbnailUri(
+        normalizeString(nextProduct.thumbnailUri || nextProduct.thumbnailUrl),
+      );
       setProductUrl(getProductUrl(nextProduct, barcode));
     },
     [barcode],
@@ -843,6 +1010,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           category: normalizeString(category) || undefined,
           productType: normalizeString(productType) || undefined,
           imageUrl: normalizeString(imageUrl) || undefined,
+          thumbnailUri: normalizeString(thumbnailUri) || undefined,
           productUrl: normalizeString(productUrl) || undefined,
           source: "user_review",
           status: "pending_review",
@@ -855,6 +1023,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           category: normalizeString(category),
           productType: normalizeString(productType),
           imageUrl: normalizeString(imageUrl),
+          thumbnailUri: normalizeString(thumbnailUri),
           url: normalizeString(productUrl),
           productUrl: normalizeString(productUrl),
           source: historyItem?.source || "scanner",
@@ -874,6 +1043,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         category: normalizeString(category) || undefined,
         productType: normalizeString(productType) || undefined,
         imageUrl: normalizeString(imageUrl) || undefined,
+        thumbnailUri: normalizeString(thumbnailUri) || undefined,
         productUrl: normalizeString(productUrl) || undefined,
         source: "manual",
         status: "complete",
@@ -886,6 +1056,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         category: normalizeString(category),
         productType: normalizeString(productType),
         imageUrl: normalizeString(imageUrl),
+        thumbnailUri: normalizeString(thumbnailUri),
         url: normalizeString(productUrl),
         productUrl: normalizeString(productUrl),
         source: historyItem?.source || "scanner",
@@ -917,6 +1088,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
     category,
     productType,
     imageUrl,
+    thumbnailUri,
     productUrl,
     saveProductData,
     submitProductReview,
@@ -1077,6 +1249,72 @@ export default function EditScannedItemScreen({ route, navigation }) {
               </View>
 
               <ProductImage uri={imageUrl} productName={resolvedName} />
+
+              {formatKilobytes(imageSizeBytes) ||
+              formatKilobytes(thumbnailSizeBytes) ? (
+                <View style={styles.imageSizeNotice}>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={16}
+                    color="#475467"
+                  />
+                  <Text style={styles.imageSizeNoticeText}>
+                    Detalle 256 px: {formatKilobytes(imageSizeBytes) || "—"}
+                    {"  ·  "}
+                    Miniatura 64 px:{" "}
+                    {formatKilobytes(thumbnailSizeBytes) || "—"}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.imageClipboardActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Pegar imagen desde el portapapeles"
+                  accessibilityState={{
+                    disabled: pastingImage || !clipboardImageAvailable,
+                  }}
+                  style={({ pressed }) => [
+                    styles.pasteImageButton,
+                    pressed && styles.pasteImageButtonPressed,
+                    (pastingImage || !clipboardImageAvailable) &&
+                      styles.pasteImageButtonDisabled,
+                  ]}
+                  onPress={handlePasteProductImage}
+                  disabled={pastingImage || !clipboardImageAvailable}
+                >
+                  {pastingImage ? (
+                    <ActivityIndicator size="small" color="#175CD3" />
+                  ) : (
+                    <Ionicons
+                      name="clipboard-outline"
+                      size={18}
+                      color="#175CD3"
+                    />
+                  )}
+                  <Text style={styles.pasteImageButtonText}>
+                    {pastingImage
+                      ? "Pegando imagen..."
+                      : "Pegar imagen del portapapeles"}
+                  </Text>
+                </Pressable>
+
+                {clipboardImageAvailable ? (
+                  <View
+                    style={styles.clipboardImageNotice}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={17}
+                      color="#027A48"
+                    />
+                    <Text style={styles.clipboardImageNoticeText}>
+                      Hay una imagen copiada en el portapapeles
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
 
             <StatusCard
@@ -1183,33 +1421,6 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 autoCorrect={false}
                 keyboardType="url"
               />
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Pegar imagen desde el portapapeles"
-                style={({ pressed }) => [
-                  styles.pasteImageButton,
-                  pressed && styles.pasteImageButtonPressed,
-                  pastingImage && styles.pasteImageButtonDisabled,
-                ]}
-                onPress={handlePasteProductImage}
-                disabled={pastingImage}
-              >
-                {pastingImage ? (
-                  <ActivityIndicator size="small" color="#175CD3" />
-                ) : (
-                  <Ionicons
-                    name="clipboard-outline"
-                    size={18}
-                    color="#175CD3"
-                  />
-                )}
-                <Text style={styles.pasteImageButtonText}>
-                  {pastingImage
-                    ? "Pegando imagen..."
-                    : "Pegar imagen del portapapeles"}
-                </Text>
-              </Pressable>
 
               <FormField
                 label="URL del producto"
@@ -1485,6 +1696,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
 
+  imageClipboardActions: {
+    marginTop: 10,
+  },
+
+  imageSizeNotice: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: "#F2F4F7",
+    borderWidth: 1,
+    borderColor: "#E4E7EC",
+  },
+
+  imageSizeNoticeText: {
+    color: "#475467",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
   productImage: {
     width: "100%",
     height: 260,
@@ -1752,6 +1990,26 @@ const styles = StyleSheet.create({
   pasteImageButtonText: {
     color: "#175CD3",
     fontSize: 14,
+    fontWeight: "800",
+  },
+
+  clipboardImageNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1,
+    borderColor: "#A6F4C5",
+  },
+
+  clipboardImageNoticeText: {
+    color: "#027A48",
+    fontSize: 12,
     fontWeight: "800",
   },
 

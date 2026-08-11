@@ -71,6 +71,7 @@ function hasUsefulProductData(data) {
     normalizeOptionalString(data.category) ||
     normalizeOptionalString(data.subcategory) ||
     normalizeOptionalString(data.imageUrl) ||
+    normalizeOptionalString(data.thumbnailUri) ||
     normalizeOptionalString(data.productUrl),
   );
 }
@@ -147,6 +148,7 @@ export const saveProductData = mutation({
     category: v.optional(v.string()),
     subcategory: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
     source: v.optional(
       v.union(
@@ -177,6 +179,7 @@ export const saveProductData = mutation({
       category: normalizeOptionalString(args.category),
       subcategory: normalizeOptionalString(args.subcategory),
       imageUrl: normalizeOptionalString(args.imageUrl),
+      thumbnailUri: normalizeOptionalString(args.thumbnailUri),
       productUrl: normalizeOptionalString(args.productUrl),
     };
     const status =
@@ -228,6 +231,7 @@ export const submitProductReview = mutation({
     category: v.optional(v.string()),
     subcategory: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
     source: v.optional(
       v.union(
@@ -265,6 +269,7 @@ export const submitProductReview = mutation({
       category: normalizeOptionalString(args.category),
       subcategory: normalizeOptionalString(args.subcategory),
       imageUrl: normalizeOptionalString(args.imageUrl),
+      thumbnailUri: normalizeOptionalString(args.thumbnailUri),
       productUrl: normalizeOptionalString(args.productUrl),
       source: args.source || "user_review",
       status: "pending_review",

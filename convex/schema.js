@@ -739,6 +739,7 @@ export default defineSchema({
     productType: v.optional(v.string()),
 
     imageUrl: v.optional(v.string()),
+    thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
 
     source: v.optional(
@@ -781,6 +782,7 @@ export default defineSchema({
     productType: v.optional(v.string()),
 
     imageUrl: v.optional(v.string()),
+    thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
 
     source: v.optional(
