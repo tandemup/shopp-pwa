@@ -45,6 +45,10 @@ import BarcodeLink from "@/src/components/controls/BarcodeLink";
 import { ROUTES } from "@/src/navigation/ROUTES";
 import { safeConfirm } from "@/src/components/ui/alert/safeAlert";
 
+const PRODUCT_DETAIL_MAX_SIZE = 256;
+const PRODUCT_THUMBNAIL_MAX_SIZE = 64;
+const ENABLE_PASTED_IMAGE_RESIZE = false;
+
 function normalizeString(value) {
   return String(value || "").trim();
 }
@@ -82,7 +86,7 @@ function formatKilobytes(bytes) {
   })} kB`;
 }
 
-function resizeImageBlob(blob, maxSize = 128) {
+function convertImageBlobToJpeg(blob, maxSize = null) {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || typeof document === "undefined") {
       reject(
@@ -100,7 +104,8 @@ function resizeImageBlob(blob, maxSize = 128) {
 
     image.onload = () => {
       const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
-      const scale = Math.min(1, maxSize / largestSide);
+      const shouldResize = Number.isFinite(maxSize) && maxSize > 0;
+      const scale = shouldResize ? Math.min(1, maxSize / largestSide) : 1;
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
       const height = Math.max(1, Math.round(image.naturalHeight * scale));
       const canvas = document.createElement("canvas");
@@ -118,18 +123,22 @@ function resizeImageBlob(blob, maxSize = 128) {
         return;
       }
 
+      // JPEG no admite transparencia. El fondo blanco evita áreas negras al
+      // convertir imágenes PNG transparentes.
+      context.fillStyle = "#FFFFFF";
+      context.fillRect(0, 0, width, height);
       context.drawImage(image, 0, 0, width, height);
 
       canvas.toBlob(
-        (resizedBlob) => {
+        (jpegBlob) => {
           cleanup();
 
-          if (!resizedBlob) {
-            reject(new Error("No se pudo redimensionar la imagen."));
+          if (!jpegBlob) {
+            reject(new Error("No se pudo convertir la imagen a JPEG."));
             return;
           }
 
-          resolve(resizedBlob);
+          resolve(jpegBlob);
         },
         "image/jpeg",
         0.86,
@@ -738,10 +747,16 @@ export default function EditScannedItemScreen({ route, navigation }) {
         if (!imageType) continue;
 
         const imageBlob = await clipboardItem.getType(imageType);
-        const [thumbnailBlob, detailBlob] = await Promise.all([
-          resizeImageBlob(imageBlob, 64),
-          resizeImageBlob(imageBlob, 256),
-        ]);
+        // Conservamos las dimensiones originales para el detalle, pero ambas
+        // versiones se convierten a JPEG y la miniatura se reduce a 64 px.
+        const thumbnailBlob = await convertImageBlobToJpeg(
+          imageBlob,
+          PRODUCT_THUMBNAIL_MAX_SIZE,
+        );
+        const detailBlob = await convertImageBlobToJpeg(
+          imageBlob,
+          ENABLE_PASTED_IMAGE_RESIZE ? PRODUCT_DETAIL_MAX_SIZE : null,
+        );
         const [thumbnailDataUrl, detailDataUrl] = await Promise.all([
           blobToDataUrl(thumbnailBlob),
           blobToDataUrl(detailBlob),
@@ -1259,9 +1274,13 @@ export default function EditScannedItemScreen({ route, navigation }) {
                     color="#475467"
                   />
                   <Text style={styles.imageSizeNoticeText}>
-                    Detalle 256 px: {formatKilobytes(imageSizeBytes) || "—"}
+                    Detalle{" "}
+                    {ENABLE_PASTED_IMAGE_RESIZE
+                      ? `${PRODUCT_DETAIL_MAX_SIZE} px`
+                      : "original"}
+                    : {formatKilobytes(imageSizeBytes) || "—"}
                     {"  ·  "}
-                    Miniatura 64 px:{" "}
+                    Miniatura {PRODUCT_THUMBNAIL_MAX_SIZE} px :{" "}
                     {formatKilobytes(thumbnailSizeBytes) || "—"}
                   </Text>
                 </View>
