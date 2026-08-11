@@ -194,6 +194,52 @@ export async function saveScannedHistory(items) {
   }
 }
 
+/*
+ * Mezcla registros remotos en el historial local sin perder cambios locales.
+ * El registro con la fecha de actualización más reciente gana; el contador
+ * de escaneos siempre conserva el valor mayor.
+ */
+export async function mergeScannedHistory(items) {
+  const localItems = await getScannedHistory();
+  const byBarcode = new Map();
+
+  for (const item of localItems) {
+    const normalized = normalizeHistoryItem(item);
+    if (normalized) byBarcode.set(normalized.barcode, normalized);
+  }
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const normalized = normalizeHistoryItem(item);
+    if (!normalized) continue;
+
+    const local = byBarcode.get(normalized.barcode);
+    if (!local) {
+      byBarcode.set(normalized.barcode, normalized);
+      continue;
+    }
+
+    const localTime = Date.parse(local.updatedAt || local.scannedAt || "") || 0;
+    const remoteTime =
+      Date.parse(normalized.updatedAt || normalized.scannedAt || "") || 0;
+    const newest = remoteTime >= localTime ? normalized : local;
+    const oldest = newest === normalized ? local : normalized;
+
+    byBarcode.set(
+      normalized.barcode,
+      normalizeHistoryItem({
+        ...oldest,
+        ...newest,
+        scanCount: Math.max(
+          Number(local.scanCount || 1),
+          Number(normalized.scanCount || 1),
+        ),
+      }),
+    );
+  }
+
+  return saveScannedHistory(Array.from(byBarcode.values()));
+}
+
 /* -------------------------------------------------
    Create or update without increasing scan count
 -------------------------------------------------- */

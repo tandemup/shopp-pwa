@@ -20,6 +20,8 @@ import { useMutation, useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
 import { safeAlert } from "@/src/components/ui/alert/safeAlert";
+import { getScannedHistory as getLocalScannedHistory } from "@/src/services/scannerHistory";
+import { migrateLocalScannedHistory } from "@/src/services/scannedHistorySync";
 import AvatarEditorScreen from "./AvatarEditorScreen";
 
 function cleanText(value) {
@@ -46,6 +48,9 @@ export default function ProfileScreen({ navigation }) {
   const currentUser = useQuery(api.users.current);
   const profile = useQuery(api.users.getMyProfile);
   const upsertMyProfile = useMutation(api.users.upsertMyProfile);
+  const syncMyScannedEntry = useMutation(
+    api.userScanHistory.syncMyScannedEntry,
+  );
   const generateAvatarUploadUrl = useMutation(
     api.users.generateAvatarUploadUrl,
   );
@@ -349,12 +354,39 @@ export default function ProfileScreen({ navigation }) {
     try {
       setSaving(true);
 
+      const enablingSync =
+        scanHistorySyncEnabled && profile?.scanHistorySyncEnabled !== true;
+
       await upsertMyProfile({
         alias: cleanAlias,
         phone: cleanPhone || undefined,
         phoneVisible,
         scanHistorySyncEnabled,
       });
+
+      if (enablingSync) {
+        const localHistory = await getLocalScannedHistory();
+        const migration = await migrateLocalScannedHistory({
+          localItems: localHistory,
+          uploadEntry: async (barcode, patch) => {
+            await syncMyScannedEntry({ ...patch, barcode });
+          },
+          onUploadError: (error, item) => {
+            console.warn(
+              "[ProfileScreen] scanned history migration failed",
+              item?.barcode,
+              error,
+            );
+          },
+        });
+
+        if (migration.failed > 0) {
+          safeAlert(
+            "Sincronización parcial",
+            `Se han subido ${migration.uploaded} productos. ${migration.failed} no se pudieron sincronizar y se reintentará más tarde.`,
+          );
+        }
+      }
 
       setFormTouched(false);
 

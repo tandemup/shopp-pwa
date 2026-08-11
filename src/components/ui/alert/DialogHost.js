@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Platform } from "react-native";
 
 import WebAlertModal from "./WebAlertModal";
 import { registerWebDialogListener } from "./safeAlert";
 
-export default function DialogHost() {
+function WebDialogHost() {
   const [dialog, setDialog] = useState(null);
 
   useEffect(() => {
@@ -48,4 +49,8 @@ export default function DialogHost() {
       onClose={closeDialog}
     />
   );
+}
+
+export default function DialogHost() {
+  return Platform.OS === "web" ? <WebDialogHost /> : null;
 }

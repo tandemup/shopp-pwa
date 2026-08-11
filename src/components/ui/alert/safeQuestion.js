@@ -21,11 +21,8 @@ function normalizeStyle(action) {
  * - No
  * - Cancelar
  *
- * El mismo modal personalizado se utiliza en:
- *
- * - Web
- * - iOS
- * - Android
+ * En Web usa el DialogHost personalizado; en iOS y Android delega en
+ * Alert.alert mediante safeAlert.
  */
 export function safeQuestion({
   title = "Confirmar",

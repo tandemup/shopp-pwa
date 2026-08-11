@@ -29,6 +29,46 @@ function optionalNullableText(value) {
   return optionalText(value);
 }
 
+function normalizeProductType(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes("libro") || normalized.includes("book")) {
+    return "Libros";
+  }
+
+  if (normalized.includes("music") || normalized.includes("musica")) {
+    return "Música";
+  }
+
+  if (
+    normalized.includes("supermerc") ||
+    normalized.includes("aliment") ||
+    normalized.includes("food")
+  ) {
+    return "Supermercado";
+  }
+
+  return optionalText(value);
+}
+
+function canonicalProductType(productType, category) {
+  const explicit = normalizeProductType(productType);
+
+  if (explicit) {
+    return explicit;
+  }
+
+  const legacy = normalizeProductType(category);
+
+  return ["Supermercado", "Libros", "Música"].includes(legacy)
+    ? legacy
+    : undefined;
+}
+
 function clampLimit(value) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return DEFAULT_LIMIT;
@@ -64,7 +104,9 @@ function buildScanPatch(args, fallbackUpdatedAt) {
     productUrl: optionalText(args.productUrl),
     imageUrl: optionalText(args.imageUrl),
     thumbnailUri: optionalNullableText(args.thumbnailUri),
+    productType: canonicalProductType(args.productType, args.category),
     category: optionalText(args.category),
+    subcategory: optionalText(args.subcategory),
     notes: optionalText(args.notes),
     source: optionalText(args.source) || "scanner",
     lookupSource: optionalNullableText(args.lookupSource),
@@ -82,7 +124,9 @@ const scanFields = {
   productUrl: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
   thumbnailUri: v.optional(v.union(v.string(), v.null())),
+  productType: v.optional(v.string()),
   category: v.optional(v.string()),
+  subcategory: v.optional(v.string()),
   notes: v.optional(v.string()),
 
   source: v.optional(v.string()),
@@ -201,6 +245,56 @@ export const updateMyScannedEntry = mutation({
       ...patch,
       scannedAt: optionalText(args.scannedAt) || nowIso,
       scanCount: 1,
+      createdAt: now,
+      updatedAtMs: now,
+    });
+
+    return await ctx.db.get(id);
+  },
+});
+
+/**
+ * Replaces one remote record with the local canonical representation. Unlike
+ * saveMyScannedEntry, this operation does not increment scanCount, so it is
+ * safe to retry during local-to-Convex migration and multi-device syncing.
+ */
+export const syncMyScannedEntry = mutation({
+  args: {
+    ...scanFields,
+    scanCount: v.optional(v.float64()),
+  },
+
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const barcode = normalizeBarcode(args.barcode);
+
+    if (!barcode) {
+      throw new Error("barcode is required");
+    }
+
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const existing = await getExistingByUserAndBarcode(ctx, userId, barcode);
+    const patch = buildScanPatch(args, nowIso);
+    const scanCount = Math.max(1, Number(args.scanCount || 1));
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        ...patch,
+        scannedAt: existing.scannedAt || optionalText(args.scannedAt) || nowIso,
+        scanCount,
+        updatedAtMs: now,
+      });
+
+      return await ctx.db.get(existing._id);
+    }
+
+    const id = await ctx.db.insert("userScanHistory", {
+      userId,
+      barcode,
+      ...patch,
+      scannedAt: optionalText(args.scannedAt) || nowIso,
+      scanCount,
       createdAt: now,
       updatedAtMs: now,
     });

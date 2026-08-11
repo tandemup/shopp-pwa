@@ -199,23 +199,19 @@ export function safeAlert(title, message, buttons = []) {
           },
         ];
 
-  const handled = emitDialog({
-    visible: true,
-
-    type: "alert",
-
-    title: title ?? "",
-
-    message: message ?? "",
-
-    buttons: finalButtons,
-  });
-
-  if (handled) {
-    return;
-  }
-
   if (Platform.OS === "web") {
+    const handled = emitDialog({
+      visible: true,
+      type: "alert",
+      title: title ?? "",
+      message: message ?? "",
+      buttons: finalButtons,
+    });
+
+    if (handled) {
+      return;
+    }
+
     safeAlertWebFallback(title, message, normalizedButtons);
 
     return;
@@ -263,23 +259,19 @@ export function safeMenu(title, message, buttons = []) {
     return;
   }
 
-  const handled = emitDialog({
-    visible: true,
-
-    type: "menu",
-
-    title: title ?? "",
-
-    message: message ?? "",
-
-    buttons: normalizedButtons,
-  });
-
-  if (handled) {
-    return;
-  }
-
   if (Platform.OS === "web") {
+    const handled = emitDialog({
+      visible: true,
+      type: "menu",
+      title: title ?? "",
+      message: message ?? "",
+      buttons: normalizedButtons,
+    });
+
+    if (handled) {
+      return;
+    }
+
     safeMenuWebFallback(title, message, normalizedButtons);
 
     return;

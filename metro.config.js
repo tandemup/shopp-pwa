@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
@@ -8,6 +9,14 @@ const config = getDefaultConfig(__dirname);
 // the regular browser build so Metro can bundle the application.
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Expo Web does not consistently resolve the `@/…` aliases declared in
+  // tsconfig/jsconfig. Resolve them explicitly from the project root so the
+  // same imports work in Metro, including imports added by the scanned
+  // product model.
+  if (moduleName.startsWith("@/")) {
+    moduleName = path.resolve(__dirname, moduleName.slice(2));
+  }
+
   if (moduleName === "onnxruntime-web/webgpu") {
     moduleName = "onnxruntime-web";
   }

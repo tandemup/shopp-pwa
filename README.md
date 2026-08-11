@@ -57,7 +57,7 @@ En la versión web es necesario conceder permiso de cámara al navegador. En iOS
 
 Shopp puede consultar información de productos a partir de su código de barras. Para reducir consultas repetidas, utiliza una caché local y una caché de productos en Convex cuando corresponde.
 
-El usuario puede configurar desde su perfil si desea sincronizar su historial de productos escaneados. La caché local permite reutilizar información ya consultada y mejora el funcionamiento cuando la conexión es limitada.
+El historial personal de productos escaneados se guarda en el almacenamiento local para que siga disponible sin conexión. Convex mantiene la caché global de productos por código de barras; no sustituye el historial personal.
 
 ### Chat
 
@@ -88,7 +88,7 @@ La aplicación requiere una cuenta para acceder a la zona principal. Desde el pe
 - Datos básicos del usuario.
 - Alias visible.
 - Teléfono y preferencias de visibilidad.
-- Preferencias de sincronización del historial escaneado.
+- Historial local de productos escaneados, disponible sin conexión.
 - Cierre de sesión.
 
 También están disponibles el registro, el inicio de sesión y la recuperación de contraseña mediante código enviado por correo electrónico.

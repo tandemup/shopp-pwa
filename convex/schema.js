@@ -93,6 +93,10 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
     thumbnailUri: v.optional(v.union(v.string(), v.null())),
     category: v.optional(v.string()),
+    categoryId: v.optional(v.union(v.string(), v.null())),
+    subcategoryName: v.optional(v.union(v.string(), v.null())),
+    productType: v.optional(v.string()),
+    isBook: v.optional(v.boolean()),
     notes: v.optional(v.string()),
 
     source: v.optional(v.string()),
@@ -732,6 +736,7 @@ export default defineSchema({
     name: v.optional(v.string()),
     brand: v.optional(v.string()),
     category: v.optional(v.string()),
+    productType: v.optional(v.string()),
 
     imageUrl: v.optional(v.string()),
     productUrl: v.optional(v.string()),
@@ -773,6 +778,7 @@ export default defineSchema({
     name: v.string(),
     brand: v.optional(v.string()),
     category: v.optional(v.string()),
+    productType: v.optional(v.string()),
 
     imageUrl: v.optional(v.string()),
     productUrl: v.optional(v.string()),

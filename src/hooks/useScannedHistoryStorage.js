@@ -1,15 +1,20 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
 import {
   clearScannedHistory as clearLocalScannedHistory,
-  getScannedEntryByBarcode as getLocalScannedEntryByBarcode,
   getScannedHistory as getLocalScannedHistory,
   removeScannedItem as removeLocalScannedItem,
   saveScannedEntry as saveLocalScannedEntry,
+  saveScannedHistory as saveLocalScannedHistory,
   updateScannedEntry as updateLocalScannedEntry,
 } from "@/src/services/scannerHistory";
+import {
+  normalizeScannedProduct,
+  toScannedProductPatch,
+} from "@/src/utils/scannedProductModel";
+import { synchronizeScannedHistory } from "@/src/services/scannedHistorySync";
 
 function normalizeBarcode(barcode) {
   return String(barcode || "")
@@ -33,22 +38,13 @@ function normalizeNullableString(value) {
 
 function toConvexScanPayload(barcode, patch = {}) {
   const cleanBarcode = normalizeBarcode(barcode || patch.barcode);
-
+  const canonical = toScannedProductPatch(patch, cleanBarcode);
   const payload = {
-    barcode: cleanBarcode,
-    name: normalizeNullableString(patch.name),
-    brand: normalizeNullableString(patch.brand),
-    url: normalizeNullableString(patch.url),
-    productUrl: normalizeNullableString(patch.productUrl),
-    imageUrl: normalizeNullableString(patch.imageUrl),
-    thumbnailUri: normalizeNullableString(patch.thumbnailUri),
-    category: normalizeNullableString(patch.category),
-    notes: normalizeNullableString(patch.notes),
-    source: normalizeNullableString(patch.source),
-    lookupSource: normalizeNullableString(patch.lookupSource),
-    dataSource: normalizeNullableString(patch.dataSource),
-    scannedAt: normalizeNullableString(patch.scannedAt),
-    updatedAt: normalizeNullableString(patch.updatedAt),
+    ...canonical,
+    productType: normalizeNullableString(canonical.productType),
+    category: normalizeNullableString(canonical.category),
+    subcategory: normalizeNullableString(canonical.subcategory),
+    imageUrl: normalizeNullableString(canonical.imageUrl),
   };
 
   return Object.fromEntries(
@@ -56,17 +52,30 @@ function toConvexScanPayload(barcode, patch = {}) {
   );
 }
 
+function toConvexSyncPayload(barcode, patch = {}) {
+  const payload = toConvexScanPayload(barcode, patch);
+  const scanCount = Number(patch.scanCount);
+
+  if (Number.isFinite(scanCount)) {
+    payload.scanCount = Math.max(1, scanCount);
+  }
+
+  return payload;
+}
+
 function normalizeConvexScan(item) {
   if (!item) {
     return null;
   }
 
-  return {
-    id: item._id || item.id || item.barcode,
-    ...item,
-    barcode: normalizeBarcode(item.barcode),
-    scanCount: Number(item.scanCount ?? 1),
-  };
+  return normalizeScannedProduct(
+    {
+      ...item,
+      id: item._id || item.id || item.barcode,
+      scanCount: Number(item.scanCount ?? 1),
+    },
+    item.barcode,
+  );
 }
 
 function normalizeConvexScanList(items) {
@@ -80,18 +89,19 @@ function normalizeConvexScanList(items) {
 export function useScannedHistoryStorage() {
   const convex = useConvex();
   const profile = useQuery(api.users.getMyProfile);
+  const syncInFlightRef = useRef(null);
 
   const saveMyScannedEntry = useMutation(
     api.userScanHistory.saveMyScannedEntry,
-  );
-  const updateMyScannedEntry = useMutation(
-    api.userScanHistory.updateMyScannedEntry,
   );
   const removeMyScannedEntry = useMutation(
     api.userScanHistory.removeMyScannedEntry,
   );
   const clearMyScanHistory = useMutation(
     api.userScanHistory.clearMyScanHistory,
+  );
+  const syncMyScannedEntry = useMutation(
+    api.userScanHistory.syncMyScannedEntry,
   );
 
   const syncEnabled = profile?.scanHistorySyncEnabled === true;
@@ -113,19 +123,72 @@ export function useScannedHistoryStorage() {
     }
   }, [convex, profile]);
 
+  const synchronize = useCallback(
+    async (localItems = null) => {
+      if (syncInFlightRef.current) {
+        return await syncInFlightRef.current;
+      }
+
+      const task = (async () => {
+        const localHistory =
+          Array.isArray(localItems) && localItems.length >= 0
+            ? localItems
+            : await getLocalScannedHistory();
+        const remoteScans = await convex.query(
+          api.userScanHistory.listMyScanHistory,
+          { limit: 300 },
+        );
+
+        return await synchronizeScannedHistory({
+          localItems: localHistory,
+          remoteItems: normalizeConvexScanList(remoteScans),
+          uploadEntry: async (barcode, patch) => {
+            await syncMyScannedEntry({ ...patch, barcode });
+          },
+          saveLocalHistory: async (items) => {
+            await saveLocalScannedHistory(items);
+          },
+          onUploadError: (error, item) => {
+            console.warn(
+              "[useScannedHistoryStorage] remote sync failed",
+              item?.barcode,
+              error,
+            );
+          },
+        });
+      })();
+
+      syncInFlightRef.current = task;
+
+      try {
+        return await task;
+      } finally {
+        if (syncInFlightRef.current === task) {
+          syncInFlightRef.current = null;
+        }
+      }
+    },
+    [convex, syncMyScannedEntry],
+  );
+
   const getScannedHistory = useCallback(async () => {
+    const localHistory = await getLocalScannedHistory();
     const shouldSync = await resolveSyncEnabled();
 
     if (!shouldSync) {
-      return await getLocalScannedHistory();
+      return localHistory;
     }
 
-    const scans = await convex.query(api.userScanHistory.listMyScanHistory, {
-      limit: 300,
-    });
-
-    return normalizeConvexScanList(scans);
-  }, [convex, resolveSyncEnabled]);
+    try {
+      return await synchronize(localHistory);
+    } catch (error) {
+      console.warn(
+        "[useScannedHistoryStorage] keeping local history after sync failure",
+        error,
+      );
+      return localHistory;
+    }
+  }, [resolveSyncEnabled, synchronize]);
 
   const getScannedEntryByBarcode = useCallback(
     async (barcode) => {
@@ -135,19 +198,15 @@ export function useScannedHistoryStorage() {
         return null;
       }
 
-      const shouldSync = await resolveSyncEnabled();
+      const history = await getScannedHistory();
 
-      if (!shouldSync) {
-        return await getLocalScannedEntryByBarcode(cleanBarcode);
-      }
-
-      const scan = await convex.query(api.userScanHistory.getMyScanByBarcode, {
-        barcode: cleanBarcode,
-      });
-
-      return normalizeConvexScan(scan);
+      return (
+        history.find(
+          (item) => normalizeBarcode(item?.barcode) === cleanBarcode,
+        ) || null
+      );
     },
-    [convex, resolveSyncEnabled],
+    [getScannedHistory],
   );
 
   const saveScannedEntry = useCallback(
@@ -158,17 +217,20 @@ export function useScannedHistoryStorage() {
         return null;
       }
 
+      const localScan = await saveLocalScannedEntry(cleanBarcode, patch);
       const shouldSync = await resolveSyncEnabled();
 
-      if (!shouldSync) {
-        return await saveLocalScannedEntry(cleanBarcode, patch);
+      if (shouldSync) {
+        try {
+          await saveMyScannedEntry(
+            toConvexScanPayload(cleanBarcode, localScan || patch),
+          );
+        } catch (error) {
+          console.warn("[useScannedHistoryStorage] save sync failed", error);
+        }
       }
 
-      const scan = await saveMyScannedEntry(
-        toConvexScanPayload(cleanBarcode, patch),
-      );
-
-      return normalizeConvexScan(scan);
+      return localScan;
     },
     [resolveSyncEnabled, saveMyScannedEntry],
   );
@@ -181,19 +243,22 @@ export function useScannedHistoryStorage() {
         return null;
       }
 
+      const localScan = await updateLocalScannedEntry(cleanBarcode, patch);
       const shouldSync = await resolveSyncEnabled();
 
-      if (!shouldSync) {
-        return await updateLocalScannedEntry(cleanBarcode, patch);
+      if (shouldSync) {
+        try {
+          await syncMyScannedEntry(
+            toConvexSyncPayload(cleanBarcode, localScan || patch),
+          );
+        } catch (error) {
+          console.warn("[useScannedHistoryStorage] update sync failed", error);
+        }
       }
 
-      const scan = await updateMyScannedEntry(
-        toConvexScanPayload(cleanBarcode, patch),
-      );
-
-      return normalizeConvexScan(scan);
+      return localScan;
     },
-    [resolveSyncEnabled, updateMyScannedEntry],
+    [resolveSyncEnabled, syncMyScannedEntry],
   );
 
   const removeScannedItem = useCallback(
@@ -202,13 +267,17 @@ export function useScannedHistoryStorage() {
 
       const shouldSync = await resolveSyncEnabled();
 
-      if (!shouldSync) {
-        return await removeLocalScannedItem(cleanBarcode);
+      const nextLocal = await removeLocalScannedItem(cleanBarcode);
+
+      if (shouldSync) {
+        try {
+          await removeMyScannedEntry({ barcode: cleanBarcode });
+        } catch (error) {
+          console.warn("[useScannedHistoryStorage] delete sync failed", error);
+        }
       }
 
-      await removeMyScannedEntry({ barcode: cleanBarcode });
-
-      return await getScannedHistory();
+      return nextLocal;
     },
     [getScannedHistory, removeMyScannedEntry, resolveSyncEnabled],
   );
@@ -216,13 +285,17 @@ export function useScannedHistoryStorage() {
   const clearScannedHistory = useCallback(async () => {
     const shouldSync = await resolveSyncEnabled();
 
-    if (!shouldSync) {
-      return await clearLocalScannedHistory();
+    const localResult = await clearLocalScannedHistory();
+
+    if (shouldSync) {
+      try {
+        await clearMyScanHistory({});
+      } catch (error) {
+        console.warn("[useScannedHistoryStorage] clear sync failed", error);
+      }
     }
 
-    await clearMyScanHistory({});
-
-    return [];
+    return localResult;
   }, [clearMyScanHistory, resolveSyncEnabled]);
 
   return useMemo(

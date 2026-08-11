@@ -15,7 +15,7 @@ import { api } from "@/convex/_generated/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocation } from "@/src/context/LocationContext";
 import StoreMapPreview from "@/src/components/features/maps/StoreMapPreview";
-// import { ParkingMarkerSelector } from "@/src/screens/parking/ParkingMarkerSelector";
+// import { ParkingMarkerSelector } from "@/src/components/features/maps/ParkingMarkerSelector";
 import { ROUTES } from "@/src/navigation/ROUTES";
 import {
   DEFAULT_PARKING_DESTINATION,

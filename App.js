@@ -1,4 +1,5 @@
 import React from "react";
+import { Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { ConvexReactClient } from "convex/react";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -22,7 +23,7 @@ export default function App() {
               <NavigationContainer>
                 <AppNavigator />
               </NavigationContainer>
-              <DialogHost />
+              {Platform.OS === "web" ? <DialogHost /> : null}
             </LocationProvider>
           </StoresProvider>
         </ListsProvider>
