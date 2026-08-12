@@ -21,7 +21,6 @@ import CurrencyBadge from "@/src/components/ui/CurrencyBadge";
 import { safeAlert, safeMenu } from "@/src/components/ui/alert/safeAlert";
 import { DEFAULT_CURRENCY } from "@/src/constants/currency";
 import { useLists } from "@/src/context/ListsContext";
-import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import { ROUTES } from "@/src/navigation/ROUTES";
 import { buildHeaderConfig } from "@/src/utils/layout/headerStyles";
 
@@ -97,9 +96,6 @@ function QuickAction({
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={description}
       onPress={onPress}
       style={({ pressed }) => [
         styles.quickAction,
@@ -152,7 +148,7 @@ function QuickActions({
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
 
-  const contentWidth = Math.max(0, Math.min(width, 920) - 32);
+  const contentWidth = Math.min(width - 32, 920);
   const isWide = contentWidth >= 720;
   const isMedium = contentWidth >= 480;
 
@@ -214,6 +210,7 @@ function QuickActions({
         icon: "chatbubble-ellipses-outline",
         iconColor: COLORS.purple,
         iconBackground: COLORS.purpleSoft,
+        badgeLabel: "NUEVO",
         onPress: () =>
           navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.CHAT_SCREEN),
       },
@@ -224,6 +221,7 @@ function QuickActions({
         icon: "car-outline",
         iconColor: COLORS.green,
         iconBackground: COLORS.greenSoft,
+        badgeLabel: "NUEVO",
         onPress: () =>
           navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.PARKING_SCREEN),
       },
@@ -245,15 +243,9 @@ function QuickActions({
             },
           ]
         : []),
+      ...(__DEV__ && isAdmin ? [{}] : []),
     ],
-    [
-      archivedCount,
-      historyCount,
-      isAdmin,
-      navigateToNestedRoute,
-      navigation,
-      scannedCount,
-    ],
+    [archivedCount, historyCount, isAdmin, navigateToNestedRoute, scannedCount],
   );
 
   return (
@@ -348,49 +340,20 @@ export default function ShoppingListsScreen() {
   const {
     activeLists = [],
     archivedLists = [],
-    purchaseHistory = [],
     createList,
     deleteList,
     updateList,
     archiveList,
   } = useLists();
-  const scanHistoryStorage = useScannedHistoryStorage();
 
   const [editingList, setEditingList] = useState(undefined);
   const [editName, setEditName] = useState("");
-  const [scannedCount, setScannedCount] = useState(0);
 
   const maxContentWidth = width >= 1000 ? 920 : undefined;
 
   useEffect(() => {
     navigation.setOptions(headerConfig.navigationOptions);
   }, [navigation]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadScannedCount() {
-      try {
-        const history = await scanHistoryStorage.getScannedHistory();
-
-        if (isMounted) {
-          setScannedCount(Array.isArray(history) ? history.length : 0);
-        }
-      } catch (error) {
-        console.warn("[ShoppingListsScreen] scan history count failed", error);
-
-        if (isMounted) {
-          setScannedCount(0);
-        }
-      }
-    }
-
-    loadScannedCount();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [scanHistoryStorage]);
 
   const sortedActiveLists = useMemo(
     () =>
@@ -617,8 +580,8 @@ export default function ShoppingListsScreen() {
 
       <QuickActions
         archivedCount={archivedLists.length}
-        historyCount={purchaseHistory.length}
-        scannedCount={scannedCount}
+        historyCount={0}
+        scannedCount={0}
         isAdmin={currentUser?.isAdmin === true}
       />
 

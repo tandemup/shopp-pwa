@@ -248,20 +248,15 @@ function downloadJsonOnWeb(filename, jsonString) {
   URL.revokeObjectURL(url);
 }
 
-async function exportUserDataToJsonFile() {
-  const [
-    userProfile,
-    shoppingLists,
-    archivedLists,
-    purchaseHistory,
-    scanHistory,
-  ] = await Promise.all([
-    getStoredJson(EXPORT_STORAGE_KEYS.userProfile, {}),
-    getStoredJson(EXPORT_STORAGE_KEYS.shoppingLists, []),
-    getStoredJson(EXPORT_STORAGE_KEYS.archivedLists, []),
-    getStoredJson(EXPORT_STORAGE_KEYS.purchaseHistory, []),
-    getStoredJson(EXPORT_STORAGE_KEYS.scanHistory, []),
-  ]);
+async function exportUserDataToJsonFile({
+  currentUser,
+  activeLists,
+  archivedLists,
+  purchaseHistory,
+  getScannedHistory,
+}) {
+  const scanHistory = await getScannedHistory();
+  const profile = currentUser?.profile ?? null;
 
   const exportData = {
     app: "Shopp",
@@ -270,23 +265,30 @@ async function exportUserDataToJsonFile() {
     exportedAt: new Date().toISOString(),
 
     user: {
-      id: userProfile?.id ?? null,
-      username: userProfile?.username ?? null,
-      city: userProfile?.city ?? null,
-      zones: Array.isArray(userProfile?.zones) ? userProfile.zones : [],
-      raw: userProfile ?? {},
+      id: currentUser?._id ? String(currentUser._id) : null,
+      username:
+        profile?.alias ?? currentUser?.name ?? currentUser?.email ?? null,
+      name: currentUser?.name ?? null,
+      email: currentUser?.email ?? null,
+      profile,
     },
 
     data: {
-      purchaseHistory,
-      shoppingLists,
-      archivedLists,
-      scanHistory,
+      purchaseHistory: Array.isArray(purchaseHistory) ? purchaseHistory : [],
+      shoppingLists: Array.isArray(activeLists) ? activeLists : [],
+      archivedLists: Array.isArray(archivedLists) ? archivedLists : [],
+      scanHistory: Array.isArray(scanHistory) ? scanHistory : [],
     },
 
     meta: {
       platform: Platform.OS,
-      storageKeys: EXPORT_STORAGE_KEYS,
+      sources: {
+        user: "Convex Auth y perfil",
+        shoppingLists: "ListsContext (almacenamiento local por usuario)",
+        archivedLists: "ListsContext (almacenamiento local por usuario)",
+        purchaseHistory: "Derivado de las listas archivadas",
+        scanHistory: "Historial local con sincronización opcional",
+      },
     },
   };
 
@@ -624,8 +626,14 @@ export default function MenuScreen({ navigation }) {
   const [productSearchEngineSubtitle, setProductSearchEngineSubtitle] =
     useState("Motor activo: Google");
 
-  const { clearActiveListsState, clearArchivedListsState, clearAllListsState } =
-    useLists();
+  const {
+    activeLists,
+    archivedLists,
+    purchaseHistory,
+    clearActiveListsState,
+    clearArchivedListsState,
+    clearAllListsState,
+  } = useLists();
 
   const tabBarHeight = useBottomTabBarHeight();
   const { reloadStoresFromSeed } = useStores();
@@ -870,7 +878,13 @@ export default function MenuScreen({ navigation }) {
     try {
       setExportingUserData(true);
 
-      const result = await exportUserDataToJsonFile();
+      const result = await exportUserDataToJsonFile({
+        currentUser,
+        activeLists,
+        archivedLists,
+        purchaseHistory,
+        getScannedHistory: scanHistoryStorage.getScannedHistory,
+      });
       const exportMessage = result.shared
         ? `Se ha generado el fichero ${result.filename}.`
         : result.platform === "web"

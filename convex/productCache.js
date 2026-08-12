@@ -23,6 +23,18 @@ function normalizeOptionalString(value) {
   return normalized || undefined;
 }
 
+function normalizeDetails(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value)
+    .map(([key, item]) => [key, normalizeOptionalString(item)])
+    .filter(([, item]) => Boolean(item));
+
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
 function normalizeProductType(value) {
   const normalized = String(value || "")
     .trim()
@@ -72,7 +84,9 @@ function hasUsefulProductData(data) {
     normalizeOptionalString(data.subcategory) ||
     normalizeOptionalString(data.imageUrl) ||
     normalizeOptionalString(data.thumbnailUri) ||
-    normalizeOptionalString(data.productUrl),
+    normalizeOptionalString(data.productUrl) ||
+    normalizeOptionalString(data.notes) ||
+    Boolean(data.details && Object.keys(data.details).length),
   );
 }
 
@@ -150,6 +164,8 @@ export const saveProductData = mutation({
     imageUrl: v.optional(v.string()),
     thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
+    details: v.optional(v.any()),
+    notes: v.optional(v.string()),
     source: v.optional(
       v.union(
         v.literal("convex"),
@@ -181,6 +197,8 @@ export const saveProductData = mutation({
       imageUrl: normalizeOptionalString(args.imageUrl),
       thumbnailUri: normalizeOptionalString(args.thumbnailUri),
       productUrl: normalizeOptionalString(args.productUrl),
+      details: normalizeDetails(args.details),
+      notes: normalizeOptionalString(args.notes),
     };
     const status =
       args.status || (hasUsefulProductData(data) ? "complete" : "pending");
@@ -233,6 +251,8 @@ export const submitProductReview = mutation({
     imageUrl: v.optional(v.string()),
     thumbnailUri: v.optional(v.string()),
     productUrl: v.optional(v.string()),
+    details: v.optional(v.any()),
+    notes: v.optional(v.string()),
     source: v.optional(
       v.union(
         v.literal("user_review"),
@@ -271,6 +291,8 @@ export const submitProductReview = mutation({
       imageUrl: normalizeOptionalString(args.imageUrl),
       thumbnailUri: normalizeOptionalString(args.thumbnailUri),
       productUrl: normalizeOptionalString(args.productUrl),
+      details: normalizeDetails(args.details),
+      notes: normalizeOptionalString(args.notes),
       source: args.source || "user_review",
       status: "pending_review",
       submittedBy,

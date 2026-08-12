@@ -352,6 +352,83 @@ function FormField({
 
 const PRODUCT_TYPES = ["Supermercado", "Libros", "Música"];
 
+const DETAIL_FIELDS = {
+  Supermercado: [
+    ["subcategory", "Subcategoría", "Subcategoría del producto"],
+    ["quantity", "Cantidad", "Ej. 500"],
+    ["unit", "Unidad", "g, kg, ml, l, unidades…"],
+    ["format", "Formato o presentación", "Ej. paquete, botella, lata"],
+    ["manufacturer", "Fabricante", "Empresa fabricante"],
+    ["countryOfOrigin", "País de origen", "País de origen"],
+    ["ingredients", "Ingredientes", "Lista de ingredientes", true],
+    ["allergens", "Alérgenos", "Alérgenos declarados", true],
+  ],
+  Libros: [
+    ["subtitle", "Subtítulo", "Subtítulo del libro"],
+    ["authors", "Autor o autores", "Separados por comas"],
+    ["isbn10", "ISBN-10", "ISBN de 10 dígitos"],
+    ["isbn13", "ISBN-13", "ISBN de 13 dígitos"],
+    ["publisher", "Editorial", "Nombre de la editorial"],
+    ["collection", "Colección", "Colección o serie"],
+    ["edition", "Edición", "Ej. segunda edición"],
+    ["publicationYear", "Año de publicación", "Ej. 2024"],
+    ["language", "Idioma", "Idioma del libro"],
+    ["pageCount", "Número de páginas", "Ej. 320"],
+    ["genre", "Género", "Novela, ensayo, historia…"],
+    ["format", "Formato", "Tapa dura, bolsillo…"],
+    ["readingStatus", "Estado de lectura", "Pendiente, leyendo o leído"],
+    ["physicalLocation", "Ubicación física", "Estantería, habitación…"],
+    ["synopsis", "Sinopsis", "Resumen del libro", true],
+  ],
+  Música: [
+    ["artist", "Artista principal", "Artista o grupo"],
+    ["composer", "Compositor", "Compositor o compositores"],
+    ["performers", "Intérpretes", "Separados por comas"],
+    ["label", "Discográfica", "Sello discográfico"],
+    ["catalogNumber", "Número de catálogo", "Referencia del sello"],
+    ["releaseYear", "Año de publicación", "Ej. 1998"],
+    ["genre", "Género", "Clásica, jazz, rock…"],
+    ["format", "Formato", "CD, vinilo, casete…"],
+    ["discCount", "Número de discos", "Ej. 2"],
+    ["trackCount", "Número de pistas", "Ej. 18"],
+    ["country", "País", "País de la edición"],
+    ["edition", "Edición", "Edición o versión"],
+    ["condition", "Estado del soporte", "Nuevo, bueno, con marcas…"],
+    ["physicalLocation", "Ubicación física", "Estantería, caja…"],
+    ["trackList", "Lista de pistas", "Una pista por línea", true],
+  ],
+};
+
+function ProductDetailsFields({ productType, details, onChange }) {
+  const fields = DETAIL_FIELDS[productType] || [];
+  if (!fields.length) return null;
+
+  return (
+    <View style={styles.detailsSection}>
+      <Text style={styles.cardEyebrow}>
+        DATOS DE {productType.toUpperCase()}
+      </Text>
+      <Text style={styles.cardTitle}>Detalles específicos</Text>
+      <Text style={styles.cardDescription}>
+        Estos campos cambian según el tipo de producto seleccionado.
+      </Text>
+      <View style={styles.detailsGrid}>
+        {fields.map(([key, label, placeholder, multiline]) => (
+          <View key={key} style={styles.detailsGridItem}>
+            <FormField
+              label={label}
+              value={String(details?.[key] || "")}
+              onChangeText={(value) => onChange(key, value)}
+              placeholder={placeholder}
+              multiline={Boolean(multiline)}
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function ProductTypeSelector({ value, onChange }) {
   return (
     <View style={styles.field}>
@@ -638,6 +715,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
+  const [details, setDetails] = useState({});
+  const [notes, setNotes] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [thumbnailUri, setThumbnailUri] = useState("");
   const [productUrl, setProductUrl] = useState("");
@@ -828,6 +907,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
       setProductType(
         normalizeString(nextProduct.productType || nextProduct.product_type),
       );
+      setDetails(
+        nextProduct.details && typeof nextProduct.details === "object"
+          ? nextProduct.details
+          : {},
+      );
+      setNotes(normalizeString(nextProduct.notes));
       setImageUrl(getProductImageUrl(nextProduct));
       setThumbnailUri(
         normalizeString(nextProduct.thumbnailUri || nextProduct.thumbnailUrl),
@@ -1017,6 +1102,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
     setLocalError(null);
 
     try {
+      const normalizedDetails = Object.fromEntries(
+        Object.entries(details || {})
+          .map(([key, value]) => [key, normalizeString(value)])
+          .filter(([, value]) => Boolean(value)),
+      );
+
       if (!isAdmin) {
         await submitProductReview({
           barcode,
@@ -1024,6 +1115,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
           brand: normalizeString(brand) || undefined,
           category: normalizeString(category) || undefined,
           productType: normalizeString(productType) || undefined,
+          details: normalizedDetails,
+          notes: normalizeString(notes) || undefined,
           imageUrl: normalizeString(imageUrl) || undefined,
           thumbnailUri: normalizeString(thumbnailUri) || undefined,
           productUrl: normalizeString(productUrl) || undefined,
@@ -1037,6 +1130,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
           brand: normalizeString(brand),
           category: normalizeString(category),
           productType: normalizeString(productType),
+          details: normalizedDetails,
+          notes: normalizeString(notes),
           imageUrl: normalizeString(imageUrl),
           thumbnailUri: normalizeString(thumbnailUri),
           url: normalizeString(productUrl),
@@ -1057,6 +1152,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
         brand: normalizeString(brand) || undefined,
         category: normalizeString(category) || undefined,
         productType: normalizeString(productType) || undefined,
+        details: normalizedDetails,
+        notes: normalizeString(notes) || undefined,
         imageUrl: normalizeString(imageUrl) || undefined,
         thumbnailUri: normalizeString(thumbnailUri) || undefined,
         productUrl: normalizeString(productUrl) || undefined,
@@ -1070,6 +1167,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
         brand: normalizeString(brand),
         category: normalizeString(category),
         productType: normalizeString(productType),
+        details: normalizedDetails,
+        notes: normalizeString(notes),
         imageUrl: normalizeString(imageUrl),
         thumbnailUri: normalizeString(thumbnailUri),
         url: normalizeString(productUrl),
@@ -1102,6 +1201,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
     brand,
     category,
     productType,
+    details,
+    notes,
     imageUrl,
     thumbnailUri,
     productUrl,
@@ -1399,10 +1500,22 @@ export default function EditScannedItemScreen({ route, navigation }) {
               </View>
 
               <FormField
-                label="Nombre"
+                label={
+                  productType === "Libros"
+                    ? "Título"
+                    : productType === "Música"
+                      ? "Título del álbum"
+                      : "Nombre"
+                }
                 value={name}
                 onChangeText={setName}
-                placeholder="Nombre del producto"
+                placeholder={
+                  productType === "Libros"
+                    ? "Título del libro"
+                    : productType === "Música"
+                      ? "Título del álbum"
+                      : "Nombre del producto"
+                }
               />
 
               <ProductTypeSelector
@@ -1410,26 +1523,44 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 onChange={setProductType}
               />
 
-              <View style={styles.formGrid}>
-                <View style={styles.formGridItem}>
-                  <FormField
-                    label="Marca"
-                    value={brand}
-                    onChangeText={setBrand}
-                    placeholder="Marca o fabricante"
-                    autoCapitalize="words"
-                  />
-                </View>
+              {!productType || productType === "Supermercado" ? (
+                <View style={styles.formGrid}>
+                  <View style={styles.formGridItem}>
+                    <FormField
+                      label="Marca"
+                      value={brand}
+                      onChangeText={setBrand}
+                      placeholder="Marca o fabricante"
+                      autoCapitalize="words"
+                    />
+                  </View>
 
-                <View style={styles.formGridItem}>
-                  <FormField
-                    label="Categoría"
-                    value={category}
-                    onChangeText={setCategory}
-                    placeholder="Categoría del producto"
-                  />
+                  <View style={styles.formGridItem}>
+                    <FormField
+                      label="Categoría"
+                      value={category}
+                      onChangeText={setCategory}
+                      placeholder="Categoría del producto"
+                    />
+                  </View>
                 </View>
-              </View>
+              ) : null}
+
+              <ProductDetailsFields
+                productType={productType}
+                details={details}
+                onChange={(key, value) =>
+                  setDetails((current) => ({ ...current, [key]: value }))
+                }
+              />
+
+              <FormField
+                label="Notas"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Notas personales sobre el producto"
+                multiline
+              />
 
               <FormField
                 label="URL de la imagen"
@@ -1917,6 +2048,22 @@ const styles = StyleSheet.create({
   formGridItem: {
     flex: 1,
     minWidth: 0,
+  },
+
+  detailsSection: {
+    marginTop: 8,
+    marginBottom: 4,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#EAECF0",
+  },
+
+  detailsGrid: {
+    marginTop: 14,
+  },
+
+  detailsGridItem: {
+    width: "100%",
   },
 
   productTypeOptions: {

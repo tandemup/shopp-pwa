@@ -40,6 +40,21 @@ function getItemGroup(item) {
   return "supermarket";
 }
 
+function getItemSecondaryText(item) {
+  const group = getItemGroup(item);
+  const details = item?.details || {};
+
+  if (group === "books") {
+    return details.authors || details.publisher || item.brand || "Libro";
+  }
+
+  if (group === "music") {
+    return details.artist || details.composer || details.label || "Música";
+  }
+
+  return item.brand || details.manufacturer || "Supermercado";
+}
+
 export default function ScannedHistoryScreen({ navigation, route }) {
   const [scannedItems, setScannedItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,8 +117,16 @@ export default function ScannedHistoryScreen({ navigation, route }) {
       const name = String(item.name || "").toLowerCase();
       const barcode = String(item.barcode || "").toLowerCase();
       const brand = String(item.brand || "").toLowerCase();
+      const details = Object.values(item.details || {})
+        .join(" ")
+        .toLowerCase();
 
-      return name.includes(q) || barcode.includes(q) || brand.includes(q);
+      return (
+        name.includes(q) ||
+        barcode.includes(q) ||
+        brand.includes(q) ||
+        details.includes(q)
+      );
     });
 
     setFilteredItems(results);
@@ -142,6 +165,9 @@ export default function ScannedHistoryScreen({ navigation, route }) {
 
   const renderItem = ({ item }) => {
     const imageUri = getItemImage(item);
+    const itemGroup = getItemGroup(item);
+    const typeIcon =
+      itemGroup === "books" ? "📚 " : itemGroup === "music" ? "💿 " : "";
 
     return (
       <View style={[styles.card, item.isBook && styles.cardBook]}>
@@ -170,12 +196,12 @@ export default function ScannedHistoryScreen({ navigation, route }) {
 
           <View style={styles.infoContent}>
             <Text style={styles.name} numberOfLines={2}>
-              {item.isBook ? "📚 " : ""}
+              {typeIcon}
               {item.name || "Sin nombre"}
             </Text>
 
             <Text style={styles.brand} numberOfLines={1}>
-              {item.brand || "N/A"}
+              {getItemSecondaryText(item)}
             </Text>
 
             <Text style={styles.count}>
