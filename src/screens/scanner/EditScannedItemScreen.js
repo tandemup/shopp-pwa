@@ -44,133 +44,14 @@ import { normalizeBarcode } from "@/src/utils/barcodeNormalization";
 import BarcodeLink from "@/src/components/controls/BarcodeLink";
 import { ROUTES } from "@/src/navigation/ROUTES";
 import { safeConfirm } from "@/src/components/ui/alert/safeAlert";
+import {
+  buildBookLookupPrompt,
+  buildMusicCdLookupPrompt,
+} from "@/src/constants/productLookupPrompts";
 
 const PRODUCT_DETAIL_MAX_SIZE = 256;
 const PRODUCT_THUMBNAIL_MAX_SIZE = 64;
 const ENABLE_PASTED_IMAGE_RESIZE = false;
-
-function buildMusicCdLookupPrompt(barcode) {
-  const normalizedBarcode = normalizeString(barcode);
-
-  return `Busca información fiable y actualizada sobre un producto musical en formato CD cuyo código de barras es ${normalizedBarcode}.
-
-Valida si es UPC-A, EAN-13 u otro formato y busca también las variantes equivalentes con o sin cero inicial, espacios o guiones. Identifica la edición exacta sin mezclar reediciones, países ni formatos distintos. Contrasta los datos, si es posible, en al menos dos fuentes fiables (MusicBrainz, Discogs, el sello o catálogo oficial).
-
-Localiza una imagen pública de la carátula frontal correspondiente exactamente a esta edición y código de barras. Comprueba visualmente, mediante el título, artistas, sello y número de catálogo, que no sea la portada de otra edición.
-
-Prioriza, en este orden, el catálogo oficial del sello, MusicBrainz Cover Art Archive, Discogs y otros catálogos musicales fiables. Busca una imagen cuadrada, nítida y de buena resolución, preferentemente JPEG. coverImageUrl debe ser una URL pública directa al archivo de imagen, no una página HTML, una URL de búsqueda ni una miniatura de baja calidad. Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la portada.
-
-Si la fuente solo ofrece PNG o WebP, devuelve la URL original y especifica el formato real. No inventes una URL, no cambies su extensión y no declares JPEG si los bytes corresponden a otro formato. Si no puedes verificar una carátula exacta, usa null en todos sus campos y explica el motivo en verificationNotes.
-
-No inventes datos: usa null cuando no puedan verificarse.
-
-Devuelve exclusivamente un objeto JSON válido, sin Markdown, comentarios ni texto adicional, con esta estructura exacta:
-{
-  "barcode": "${normalizedBarcode}",
-  "barcodeType": null,
-  "ean13": null,
-  "upcA": null,
-  "productType": "Música",
-  "physicalFormat": "CD",
-  "title": null,
-  "subtitle": null,
-  "releaseType": null,
-  "primaryArtist": null,
-  "artists": [],
-  "composer": null,
-  "composers": [],
-  "performers": [],
-  "conductor": null,
-  "orchestra": null,
-  "label": null,
-  "catalogNumber": null,
-  "releaseYear": null,
-  "releaseDate": null,
-  "recordingYears": null,
-  "country": null,
-  "numberOfDiscs": null,
-  "trackCount": null,
-  "genre": null,
-  "subgenre": null,
-  "period": null,
-  "description": null,
-  "contentsSummary": null,
-  "trackList": [],
-  "coverImageUrl": null,
-  "coverImageFormat": null,
-  "coverImageWidth": null,
-  "coverImageHeight": null,
-  "coverImageSourceUrl": null,
-  "productPageUrl": null,
-  "identifiers": {
-    "musicBrainzReleaseId": null,
-    "discogsReleaseId": null
-  },
-  "sourceUrls": [],
-  "verificationStatus": "unverified",
-  "verificationNotes": null
-}
-
-Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. Para cajas o recopilatorios indica el número total de discos y resume el contenido. En música clásica diferencia compositor, intérprete, director y orquesta; no pongas al compositor en primaryArtist cuando haya un intérprete principal claramente identificado.
-
-Devuelve exclusivamente el objeto dentro de un único bloque de código JSON.
-No escribas explicaciones antes ni después.
-No dividas el JSON en varios bloques.
-El bloque debe contener un JSON válido y completo para que la interfaz muestre
-un único botón Copiar.`;
-}
-
-function buildBookLookupPrompt(barcode) {
-  const normalizedBarcode = normalizeString(barcode);
-
-  return `Busca información bibliográfica fiable sobre el libro cuyo código de barras es ${normalizedBarcode}.
-
-Elimina espacios y guiones del código. Determina si es ISBN-10, ISBN-13 o un EAN-13 que contiene un ISBN y comprueba matemáticamente su dígito de control. Si empieza por 978, calcula el ISBN-10 equivalente y vuelve a validar su dígito de control. No devuelvas ningún ISBN convertido que no supere la validación.
-
-Identifica exactamente la edición asociada al ISBN. No mezcles otras editoriales, idiomas, países, encuadernaciones, reimpresiones o ediciones. Contrasta los datos en al menos dos fuentes que muestren el mismo ISBN y la misma edición. Prioriza la editorial, la Agencia ISBN o biblioteca nacional, WorldCat, Google Books, Open Library y librerías reconocidas. No marques el resultado como verified si las fuentes no confirman el mismo ISBN y edición.
-
-Localiza una imagen pública de la cubierta frontal correspondiente exactamente a esta edición e ISBN. Comprueba mediante el título, autores, editorial, año e ISBN que no sea la cubierta de otra edición. Prioriza la editorial y catálogos bibliográficos fiables. Busca una imagen nítida y de buena resolución, preferentemente JPEG.
-
-coverImageUrl debe ser una URL pública directa al archivo de imagen, no solamente un dominio, una página HTML, una URL de búsqueda ni una miniatura de baja calidad. No uses imágenes genéricas o de "portada no disponible". Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la cubierta. Si solo existe en PNG o WebP, devuelve la URL original y especifica el formato real. No inventes ni construyas una URL, no cambies su extensión y no declares JPEG si el archivo tiene otro formato. Si no encuentras una imagen directa verificable, usa null en todos los campos de cubierta y explica el motivo en verificationNotes.
-
-Todas las URL deben ser texto plano, completo y en una sola línea. No uses enlaces Markdown con formato [texto](URL), espacios ni saltos de línea dentro de una URL. coverImageSourceUrl debe ser la página concreta donde verificaste la cubierta y productPageUrl la página concreta de esta edición.
-
-No inventes datos: usa null cuando no puedan verificarse.
-
-Devuelve exclusivamente un objeto dentro de un único bloque de código JSON, sin explicaciones antes ni después. Usa comillas dobles, no introduzcas saltos de línea dentro de strings y conserva estos tipos: authors y sourceUrls son arrays de strings; publicationYear, pageCount, coverImageWidth y coverImageHeight son números o null; los demás campos son strings o null. Usa esta estructura exacta:
-{
-  "barcode": "${normalizedBarcode}",
-  "barcodeType": null,
-  "isbn10": null,
-  "isbn13": null,
-  "productType": "Libros",
-  "title": null,
-  "subtitle": null,
-  "authors": [],
-  "publisher": null,
-  "collection": null,
-  "edition": null,
-  "publicationYear": null,
-  "publicationDate": null,
-  "language": null,
-  "pageCount": null,
-  "genre": null,
-  "category": null,
-  "physicalFormat": null,
-  "synopsis": null,
-  "coverImageUrl": null,
-  "coverImageFormat": null,
-  "coverImageWidth": null,
-  "coverImageHeight": null,
-  "coverImageSourceUrl": null,
-  "productPageUrl": null,
-  "sourceUrls": [],
-  "verificationStatus": "unverified",
-  "verificationNotes": null
-}
-
-Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. Antes de responder comprueba internamente que el JSON sea válido, que ambos ISBN tengan dígitos de control válidos, que coverImageUrl sea una imagen directa y que ninguna URL contenga Markdown, espacios o saltos de línea. No dividas el JSON en varios bloques. El bloque debe contener un JSON válido y completo para que la interfaz muestre un único botón Copiar.`;
-}
 
 function normalizeString(value) {
   return String(value || "").trim();
@@ -221,6 +102,30 @@ function normalizeExternalUrl(value) {
   );
   const plainValue = normalizeString(markdownMatch?.[1] || normalizedValue);
   return /^https?:\/\/\S+$/i.test(plainValue) ? plainValue : "";
+}
+
+function getLookupCoverImageUrl(data) {
+  if (!data || typeof data !== "object") return "";
+
+  const candidates = [
+    data.coverImageUrl,
+    data.coverUrl,
+    data.imageUrl,
+    data.thumbnailUrl,
+    data.imageLinks?.extraLarge,
+    data.imageLinks?.large,
+    data.imageLinks?.medium,
+    data.imageLinks?.small,
+    data.imageLinks?.thumbnail,
+    data.imageLinks?.smallThumbnail,
+  ];
+
+  for (const candidate of candidates) {
+    const normalizedUrl = normalizeExternalUrl(candidate);
+    if (normalizedUrl) return normalizedUrl;
+  }
+
+  return "";
 }
 
 function joinJsonValues(...values) {
@@ -561,21 +466,15 @@ const DETAIL_FIELDS = {
     ["allergens", "Alérgenos", "Alérgenos declarados", true],
   ],
   Libros: [
-    ["subtitle", "Subtítulo", "Subtítulo del libro"],
     ["authors", "Autor o autores", "Separados por comas"],
-    ["isbn10", "ISBN-10", "ISBN de 10 dígitos"],
     ["isbn13", "ISBN-13", "ISBN de 13 dígitos"],
     ["publisher", "Editorial", "Nombre de la editorial"],
-    ["collection", "Colección", "Colección o serie"],
-    ["edition", "Edición", "Ej. segunda edición"],
     ["publicationYear", "Año de publicación", "Ej. 2024"],
     ["language", "Idioma", "Idioma del libro"],
     ["pageCount", "Número de páginas", "Ej. 320"],
-    ["genre", "Género", "Novela, ensayo, historia…"],
+    ["category", "Categoría", "Novela, arquitectura, historia…"],
     ["format", "Formato", "Tapa dura, bolsillo…"],
-    ["readingStatus", "Estado de lectura", "Pendiente, leyendo o leído"],
-    ["physicalLocation", "Ubicación física", "Estantería, habitación…"],
-    ["synopsis", "Sinopsis", "Resumen del libro", true],
+    ["synopsis", "Sinopsis breve", "Resumen breve del libro", true],
   ],
   Música: [
     ["artist", "Artista principal", "Artista o grupo"],
@@ -839,6 +738,40 @@ function EliminarDelHistorial({ busy, deleting, onDelete }) {
   );
 }
 
+function EliminarDeBaseDeDatos({ busy, deleting, onDelete }) {
+  const handlePress = useCallback(() => {
+    safeConfirm(
+      "Eliminar también de la base de datos",
+      "¿Quieres eliminar definitivamente la ficha global de Convex y este elemento del historial local? Esta acción afectará a todos los dispositivos y no se puede deshacer.",
+      onDelete,
+      {
+        confirmText: "Eliminar definitivamente",
+        cancelText: "Cancelar",
+        destructive: true,
+      },
+    );
+  }, [onDelete]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.deleteDatabaseButton,
+        pressed && styles.deleteDatabaseButtonPressed,
+        busy && styles.disabledButton,
+      ]}
+      onPress={handlePress}
+      disabled={busy}
+    >
+      <Ionicons name="server-outline" size={18} color="#FFFFFF" />
+      <Text style={styles.deleteDatabaseButtonText}>
+        {deleting
+          ? "Eliminando de la base de datos..."
+          : "Eliminar también de la base de datos"}
+      </Text>
+    </Pressable>
+  );
+}
+
 function EliminarDelHistorial1({ busy, deleting, onDelete }) {
   return (
     <View style={styles.dangerZone}>
@@ -889,6 +822,9 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const registerAccess = useMutation(api.productCache.registerAccess);
   const saveProductData = useMutation(api.productCache.saveProductData);
   const submitProductReview = useMutation(api.productCache.submitProductReview);
+  const deleteProductByBarcode = useMutation(
+    api.productCache.deleteProductByBarcode,
+  );
   const currentUser = useQuery(api.users.current);
   const scanHistoryStorage = useScannedHistoryStorage();
   const userIsLoading = currentUser === undefined;
@@ -914,6 +850,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingFromDatabase, setDeletingFromDatabase] = useState(false);
   const [localError, setLocalError] = useState(null);
   const [selectedSearchEngine, setSelectedSearchEngine] =
     useState(DEFAULT_ENGINE);
@@ -940,7 +877,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
     consultingInternet ||
     internetLookupLoading ||
     saving ||
-    deleting;
+    deleting ||
+    deletingFromDatabase;
 
   const visibleError = localError || lookupError;
   const displayedImageUri = pastedImageUri || imageUrl;
@@ -1457,6 +1395,29 @@ export default function EditScannedItemScreen({ route, navigation }) {
     }
   }, [barcode, navigation, scanHistoryStorage]);
 
+  const handleDeleteFromDatabase = useCallback(async () => {
+    if (!barcode) {
+      setLocalError("No hay código de barras para eliminar.");
+      return;
+    }
+
+    setDeletingFromDatabase(true);
+    setLocalError(null);
+
+    try {
+      await deleteProductByBarcode({ barcode });
+      await scanHistoryStorage.removeScannedItem(barcode);
+      navigation.goBack();
+    } catch (error) {
+      console.error("EditScannedItemScreen database delete error:", error);
+      setLocalError(
+        error?.message || "No se pudo eliminar la ficha de la base de datos.",
+      );
+    } finally {
+      setDeletingFromDatabase(false);
+    }
+  }, [barcode, deleteProductByBarcode, navigation, scanHistoryStorage]);
+
   const handleExternalSearch = useCallback(async () => {
     if (!barcode) {
       setLocalError("No hay código de barras para buscar.");
@@ -1526,9 +1487,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
         });
         return merged;
       });
-      if (normalizeString(data.coverImageUrl)) {
-        const nextImageUrl = normalizeExternalUrl(data.coverImageUrl);
-        if (nextImageUrl) setImageUrl(nextImageUrl);
+      const nextImageUrl = getLookupCoverImageUrl(data);
+      if (nextImageUrl) {
+        setImageUrl(nextImageUrl);
+        setPastedImageUri("");
+        setThumbnailUri("");
       }
       if (normalizeString(data.productPageUrl)) {
         const nextProductUrl = normalizeExternalUrl(data.productPageUrl);
@@ -1562,19 +1525,13 @@ export default function EditScannedItemScreen({ route, navigation }) {
       }
 
       const nextDetails = {
-        subtitle: normalizeString(data.subtitle),
         authors: joinJsonValues(data.authors, data.author),
-        isbn10: normalizeString(data.isbn10),
         isbn13: normalizeString(data.isbn13),
         publisher: normalizeString(data.publisher),
-        collection: normalizeString(data.collection || data.series),
-        edition: normalizeString(data.edition),
-        publicationYear: normalizeString(
-          data.publicationYear || data.publicationDate,
-        ),
+        publicationYear: normalizeString(data.publicationYear),
         language: normalizeString(data.language),
         pageCount: normalizeString(data.pageCount),
-        genre: normalizeString(data.genre || data.category),
+        category: normalizeString(data.category || data.genre),
         format: normalizeString(data.physicalFormat || data.format),
         synopsis: normalizeString(data.synopsis || data.description),
       };
@@ -1588,9 +1545,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
         });
         return merged;
       });
-      if (normalizeString(data.coverImageUrl)) {
-        const nextImageUrl = normalizeExternalUrl(data.coverImageUrl);
-        if (nextImageUrl) setImageUrl(nextImageUrl);
+      const nextImageUrl = getLookupCoverImageUrl(data);
+      if (nextImageUrl) {
+        setImageUrl(nextImageUrl);
+        setPastedImageUri("");
+        setThumbnailUri("");
       }
       if (normalizeString(data.productPageUrl)) {
         const nextProductUrl = normalizeExternalUrl(data.productPageUrl);
@@ -2100,6 +2059,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
                     busy={busy}
                     deleting={deleting}
                     onDelete={handleDeleteFromHistory}
+                  />
+                  <EliminarDeBaseDeDatos
+                    busy={busy}
+                    deleting={deletingFromDatabase}
+                    onDelete={handleDeleteFromDatabase}
                   />
                   <CerrarSinGuardar navigation={navigation} busy={busy} />
                 </>
@@ -2829,6 +2793,28 @@ const styles = StyleSheet.create({
 
   deleteButtonText: {
     color: "#B42318",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  deleteDatabaseButton: {
+    minHeight: 44,
+    marginTop: 10,
+    borderRadius: 13,
+    backgroundColor: "#B42318",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 14,
+  },
+
+  deleteDatabaseButtonPressed: {
+    backgroundColor: "#912018",
+  },
+
+  deleteDatabaseButtonText: {
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "900",
   },

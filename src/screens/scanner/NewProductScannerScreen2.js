@@ -2,6 +2,7 @@
 
 import React, {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -123,6 +124,8 @@ export default function NewProductScannerScreen2() {
 
     captureMode = null,
 
+    manualBarcode = "",
+
     saveToHistory: routeSaveToHistory = null,
 
     listId = null,
@@ -159,6 +162,7 @@ export default function NewProductScannerScreen2() {
   const [scannerSession, setScannerSession] = useState(0);
 
   const isQuickEan13Input = captureMode === "ean13-input";
+  const isManualBarcodeInput = __DEV__ && captureMode === "manual-barcode";
 
   const barcodeTypes = useMemo(() => {
     return normalizeBarcodeTypes(routeBarcodeTypes);
@@ -253,6 +257,27 @@ export default function NewProductScannerScreen2() {
   function handleToggleTorch() {
     setTorchEnabled((previous) => !previous);
   }
+
+  useEffect(() => {
+    if (!isManualBarcodeInput) return;
+
+    const barcode = normalizeBarcode(manualBarcode);
+
+    if (barcode.length < 8 || barcode.length > 14) {
+      safeAlert(
+        "Código no válido",
+        "Introduce un código de entre 8 y 14 dígitos.",
+        [{ key: "close", text: "Volver", onPress: handleCancel }],
+      );
+      return;
+    }
+
+    if (scannedRef.current || handlingScanRef.current) return;
+
+    scannedRef.current = true;
+    handlingScanRef.current = true;
+    processDetectedBarcode(barcode, true);
+  }, [isManualBarcodeInput, manualBarcode]);
 
   function handleQuickEan13Detected(code) {
     if (scannedRef.current || handlingScanRef.current) {
@@ -523,6 +548,21 @@ export default function NewProductScannerScreen2() {
           onPress: handleCancel,
         },
       ],
+    );
+  }
+
+  if (isManualBarcodeInput) {
+    return (
+      <SafeAreaView style={styles.permissionContainer}>
+        <StatusBar {...headerConfig.statusBar} />
+        <View style={styles.center}>
+          <ActivityIndicator color="#7C3AED" />
+          <Text style={styles.permissionTitle}>Procesando código</Text>
+          <Text style={styles.permissionMessage}>
+            {normalizeBarcode(manualBarcode)}
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 

@@ -1,7 +1,7 @@
 // screens/scanner/ScannerTabScreen.js
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, TextInput, StyleSheet, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -39,6 +39,8 @@ export default function ScannerTabScreen({ navigation }) {
   const [barcodeSettings, setBarcodeSettings] = useState(
     DEFAULT_BARCODE_SETTINGS,
   );
+  const [manualBarcode, setManualBarcode] = useState("");
+  const [manualBarcodeError, setManualBarcodeError] = useState("");
 
   const headerConfig = useMemo(
     () =>
@@ -98,6 +100,31 @@ export default function ScannerTabScreen({ navigation }) {
     navigation.navigate(ROUTES.SCANNED_HISTORY);
   };
 
+  const handleManualBarcodeChange = (value) => {
+    setManualBarcode(
+      String(value || "")
+        .replace(/\D/g, "")
+        .slice(0, 14),
+    );
+    setManualBarcodeError("");
+  };
+
+  const processManualBarcode = () => {
+    const barcode = manualBarcode.replace(/\D/g, "");
+
+    if (barcode.length < 8 || barcode.length > 14) {
+      setManualBarcodeError("Introduce un código de entre 8 y 14 dígitos.");
+      return;
+    }
+
+    navigation.navigate(ROUTES.NEW_PRODUCT_SCANNER2, {
+      captureMode: "manual-barcode",
+      manualBarcode: barcode,
+      saveToHistory: true,
+      barcodeTypes: enabledBarcodeTypes,
+    });
+  };
+
   const goToAdminProductReviews = () => {
     navigation.navigate("AdminProductReviews");
   };
@@ -140,6 +167,60 @@ export default function ScannerTabScreen({ navigation }) {
 
               <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
             </Pressable>
+
+            {__DEV__ ? (
+              <View style={[styles.card, styles.developmentCard]}>
+                <View style={[styles.iconBox, styles.developmentIconBox]}>
+                  <Ionicons name="keypad-outline" size={26} color="#7C3AED" />
+                </View>
+
+                <View style={styles.cardText}>
+                  <View style={styles.developmentTitleRow}>
+                    <Text style={styles.cardTitle}>
+                      Introducir código manualmente
+                    </Text>
+                    <Text style={styles.developmentBadge}>DESARROLLO</Text>
+                  </View>
+                  <Text style={styles.cardSubtitle}>
+                    Prueba el alta de un producto sin utilizar la cámara.
+                  </Text>
+                  <View style={styles.manualBarcodeRow}>
+                    <TextInput
+                      value={manualBarcode}
+                      onChangeText={handleManualBarcodeChange}
+                      onSubmitEditing={processManualBarcode}
+                      placeholder="Código de barras"
+                      placeholderTextColor={TEXT_MUTED}
+                      keyboardType="number-pad"
+                      inputMode="numeric"
+                      returnKeyType="go"
+                      maxLength={14}
+                      style={styles.manualBarcodeInput}
+                      accessibilityLabel="Código de barras manual"
+                    />
+                    <Pressable
+                      onPress={processManualBarcode}
+                      disabled={manualBarcode.length < 8}
+                      style={({ pressed }) => [
+                        styles.manualBarcodeButton,
+                        pressed && styles.manualBarcodeButtonPressed,
+                        manualBarcode.length < 8 &&
+                          styles.manualBarcodeButtonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.manualBarcodeButtonText}>
+                        Continuar
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {manualBarcodeError ? (
+                    <Text style={styles.manualBarcodeError}>
+                      {manualBarcodeError}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
 
             <Pressable
               style={({ pressed }) => [
@@ -281,6 +362,80 @@ const styles = StyleSheet.create({
 
   adminIconBox: {
     backgroundColor: "#EFF6FF",
+  },
+
+  developmentCard: {
+    alignItems: "flex-start",
+    borderColor: "#DDD6FE",
+  },
+
+  developmentIconBox: {
+    backgroundColor: "#F5F3FF",
+  },
+
+  developmentTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+
+  developmentBadge: {
+    color: "#6D28D9",
+    backgroundColor: "#EDE9FE",
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    fontSize: 9,
+    fontWeight: "900",
+  },
+
+  manualBarcodeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+
+  manualBarcodeInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 42,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderColor: "#C4B5FD",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    color: TEXT_PRIMARY,
+    fontSize: 15,
+  },
+
+  manualBarcodeButton: {
+    minHeight: 42,
+    paddingHorizontal: 13,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#7C3AED",
+  },
+
+  manualBarcodeButtonPressed: {
+    backgroundColor: "#6D28D9",
+  },
+
+  manualBarcodeButtonDisabled: {
+    opacity: 0.45,
+  },
+
+  manualBarcodeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  manualBarcodeError: {
+    marginTop: 7,
+    color: "#B42318",
+    fontSize: 12,
   },
 
   cardText: {

@@ -153,6 +153,40 @@ export const getByBarcode = query({
   },
 });
 
+export const deleteProductByBarcode = mutation({
+  args: { barcode: v.string() },
+
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      throw new Error("Debes iniciar sesión para eliminar productos.");
+    }
+
+    const user = await ctx.db.get(userId);
+    const isAdmin = user?.isAdmin === true || user?.role === "admin";
+
+    if (!isAdmin) {
+      throw new Error("Solo un administrador puede eliminar la ficha global.");
+    }
+
+    const barcode = normalizeBarcode(args.barcode);
+    validateBarcode(barcode);
+
+    const existingProduct = await ctx.db
+      .query("productCache")
+      .withIndex("by_barcode", (q) => q.eq("barcode", barcode))
+      .unique();
+
+    if (!existingProduct) {
+      return { deleted: false, barcode };
+    }
+
+    await ctx.db.delete(existingProduct._id);
+    return { deleted: true, barcode };
+  },
+});
+
 export const saveProductData = mutation({
   args: {
     barcode: v.string(),
