@@ -49,8 +49,186 @@ const PRODUCT_DETAIL_MAX_SIZE = 256;
 const PRODUCT_THUMBNAIL_MAX_SIZE = 64;
 const ENABLE_PASTED_IMAGE_RESIZE = false;
 
+function buildMusicCdLookupPrompt(barcode) {
+  const normalizedBarcode = normalizeString(barcode);
+
+  return `Busca información fiable y actualizada sobre un producto musical en formato CD cuyo código de barras es ${normalizedBarcode}.
+
+Valida si es UPC-A, EAN-13 u otro formato y busca también las variantes equivalentes con o sin cero inicial, espacios o guiones. Identifica la edición exacta sin mezclar reediciones, países ni formatos distintos. Contrasta los datos, si es posible, en al menos dos fuentes fiables (MusicBrainz, Discogs, el sello o catálogo oficial).
+
+Localiza una imagen pública de la carátula frontal correspondiente exactamente a esta edición y código de barras. Comprueba visualmente, mediante el título, artistas, sello y número de catálogo, que no sea la portada de otra edición.
+
+Prioriza, en este orden, el catálogo oficial del sello, MusicBrainz Cover Art Archive, Discogs y otros catálogos musicales fiables. Busca una imagen cuadrada, nítida y de buena resolución, preferentemente JPEG. coverImageUrl debe ser una URL pública directa al archivo de imagen, no una página HTML, una URL de búsqueda ni una miniatura de baja calidad. Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la portada.
+
+Si la fuente solo ofrece PNG o WebP, devuelve la URL original y especifica el formato real. No inventes una URL, no cambies su extensión y no declares JPEG si los bytes corresponden a otro formato. Si no puedes verificar una carátula exacta, usa null en todos sus campos y explica el motivo en verificationNotes.
+
+No inventes datos: usa null cuando no puedan verificarse.
+
+Devuelve exclusivamente un objeto JSON válido, sin Markdown, comentarios ni texto adicional, con esta estructura exacta:
+{
+  "barcode": "${normalizedBarcode}",
+  "barcodeType": null,
+  "ean13": null,
+  "upcA": null,
+  "productType": "Música",
+  "physicalFormat": "CD",
+  "title": null,
+  "subtitle": null,
+  "releaseType": null,
+  "primaryArtist": null,
+  "artists": [],
+  "composer": null,
+  "composers": [],
+  "performers": [],
+  "conductor": null,
+  "orchestra": null,
+  "label": null,
+  "catalogNumber": null,
+  "releaseYear": null,
+  "releaseDate": null,
+  "recordingYears": null,
+  "country": null,
+  "numberOfDiscs": null,
+  "trackCount": null,
+  "genre": null,
+  "subgenre": null,
+  "period": null,
+  "description": null,
+  "contentsSummary": null,
+  "trackList": [],
+  "coverImageUrl": null,
+  "coverImageFormat": null,
+  "coverImageWidth": null,
+  "coverImageHeight": null,
+  "coverImageSourceUrl": null,
+  "productPageUrl": null,
+  "identifiers": {
+    "musicBrainzReleaseId": null,
+    "discogsReleaseId": null
+  },
+  "sourceUrls": [],
+  "verificationStatus": "unverified",
+  "verificationNotes": null
+}
+
+Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. Para cajas o recopilatorios indica el número total de discos y resume el contenido. En música clásica diferencia compositor, intérprete, director y orquesta; no pongas al compositor en primaryArtist cuando haya un intérprete principal claramente identificado.
+
+Devuelve exclusivamente el objeto dentro de un único bloque de código JSON.
+No escribas explicaciones antes ni después.
+No dividas el JSON en varios bloques.
+El bloque debe contener un JSON válido y completo para que la interfaz muestre
+un único botón Copiar.`;
+}
+
+function buildBookLookupPrompt(barcode) {
+  const normalizedBarcode = normalizeString(barcode);
+
+  return `Busca información bibliográfica fiable y actualizada sobre un libro cuyo código de barras es ${normalizedBarcode}.
+
+Valida si el código es ISBN-10, ISBN-13 o EAN-13. Convierte entre ISBN-10 e ISBN-13 cuando sea matemáticamente posible y comprueba los dígitos de control. Identifica la edición exacta sin mezclar idiomas, editoriales, países, encuadernaciones, reimpresiones ni ediciones distintas. Contrasta los datos, si es posible, en al menos dos fuentes fiables como la editorial, ISBNdb, Google Books, Open Library, WorldCat o catálogos de bibliotecas nacionales.
+
+Localiza una imagen pública de la cubierta frontal correspondiente exactamente a esta edición e ISBN. Comprueba mediante el título, autores, editorial, año e ISBN que no sea la cubierta de otra edición. Prioriza la editorial y catálogos bibliográficos fiables. Busca una imagen nítida y de buena resolución, preferentemente JPEG.
+
+coverImageUrl debe ser una URL pública directa al archivo de imagen, no una página HTML, una URL de búsqueda ni una miniatura de baja calidad. Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la cubierta. Si solo existe en PNG o WebP, devuelve la URL original y especifica el formato real. No inventes una URL, no cambies su extensión y no declares JPEG si los bytes corresponden a otro formato. Si no puedes verificar la cubierta exacta, usa null en todos sus campos y explica el motivo en verificationNotes.
+
+No inventes datos: usa null cuando no puedan verificarse.
+
+Devuelve exclusivamente un objeto dentro de un único bloque de código JSON, sin explicaciones antes ni después, con esta estructura exacta:
+{
+  "barcode": "${normalizedBarcode}",
+  "barcodeType": null,
+  "isbn10": null,
+  "isbn13": null,
+  "productType": "Libros",
+  "title": null,
+  "subtitle": null,
+  "authors": [],
+  "publisher": null,
+  "collection": null,
+  "edition": null,
+  "publicationYear": null,
+  "publicationDate": null,
+  "language": null,
+  "pageCount": null,
+  "genre": null,
+  "category": null,
+  "physicalFormat": null,
+  "synopsis": null,
+  "coverImageUrl": null,
+  "coverImageFormat": null,
+  "coverImageWidth": null,
+  "coverImageHeight": null,
+  "coverImageSourceUrl": null,
+  "productPageUrl": null,
+  "sourceUrls": [],
+  "verificationStatus": "unverified",
+  "verificationNotes": null
+}
+
+Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. No uses imágenes genéricas, marcadores de "portada no disponible" ni cubiertas que no coincidan con el ISBN de esta edición. No dividas el JSON en varios bloques. El bloque debe contener un JSON válido y completo para que la interfaz muestre un único botón Copiar.`;
+}
+
 function normalizeString(value) {
   return String(value || "").trim();
+}
+
+function isMusicProductType(value) {
+  const normalizedValue = normalizeString(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  return normalizedValue === "musica" || normalizedValue === "music";
+}
+
+function isBookProductType(value) {
+  const normalizedValue = normalizeString(value).toLowerCase();
+  return normalizedValue === "libros" || normalizedValue === "book";
+}
+
+function parseMusicJson(value) {
+  const cleanedValue = normalizeString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  if (!cleanedValue) {
+    throw new Error("Pega primero el JSON obtenido en la búsqueda.");
+  }
+
+  const parsed = JSON.parse(cleanedValue);
+
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("La respuesta debe contener un objeto JSON.");
+  }
+
+  return parsed;
+}
+
+function joinJsonValues(...values) {
+  return values
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map(normalizeString)
+    .filter(Boolean)
+    .filter((value, index, items) => items.indexOf(value) === index)
+    .join(", ");
+}
+
+function formatTrackList(trackList) {
+  if (!Array.isArray(trackList)) return normalizeString(trackList);
+
+  return trackList
+    .map((track, index) => {
+      if (typeof track === "string") return normalizeString(track);
+      if (!track || typeof track !== "object") return "";
+
+      const position = normalizeString(
+        track.position || track.number || track.trackNumber || index + 1,
+      );
+      const title = normalizeString(track.title || track.name);
+      return title ? `${position}. ${title}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function blobToDataUrl(blob) {
@@ -383,19 +561,11 @@ const DETAIL_FIELDS = {
   Música: [
     ["artist", "Artista principal", "Artista o grupo"],
     ["composer", "Compositor", "Compositor o compositores"],
-    ["performers", "Intérpretes", "Separados por comas"],
+    ["format", "Soporte", "CD, vinilo, casete…"],
+    ["discCount", "Número de discos", "Ej. 17"],
+    ["subcategory", "Subcategoría", "Ej. Órgano"],
     ["label", "Discográfica", "Sello discográfico"],
-    ["catalogNumber", "Número de catálogo", "Referencia del sello"],
-    ["releaseYear", "Año de publicación", "Ej. 1998"],
-    ["genre", "Género", "Clásica, jazz, rock…"],
-    ["format", "Formato", "CD, vinilo, casete…"],
-    ["discCount", "Número de discos", "Ej. 2"],
-    ["trackCount", "Número de pistas", "Ej. 18"],
-    ["country", "País", "País de la edición"],
-    ["edition", "Edición", "Edición o versión"],
-    ["condition", "Estado del soporte", "Nuevo, bueno, con marcas…"],
-    ["physicalLocation", "Ubicación física", "Estantería, caja…"],
-    ["trackList", "Lista de pistas", "Una pista por línea", true],
+    ["releaseYear", "Año", "Ej. 1995"],
   ],
 };
 
@@ -465,11 +635,28 @@ function ProductTypeSelector({ value, onChange }) {
     </View>
   );
 }
-function GoogleModeIA({ busy, barcode, onPress }) {
+function GoogleModeIA({
+  busy,
+  barcode,
+  musicJsonSearch = false,
+  bookJsonSearch = false,
+  onPress,
+}) {
+  const jsonSearchTitle = musicJsonSearch
+    ? "Buscar ficha de CD (JSON)"
+    : bookJsonSearch
+      ? "Buscar ficha de libro (JSON)"
+      : "Google Modo IA";
+  const jsonSearchDescription = musicJsonSearch
+    ? "Identifica la edición e incluye la URL de la carátula"
+    : bookJsonSearch
+      ? "Identifica la edición e incluye la URL de la cubierta"
+      : "Respuesta generada a partir del código";
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Buscar producto en Google Modo IA"
+      accessibilityLabel={jsonSearchTitle}
       style={({ pressed }) => [
         styles.externalAction,
         pressed && styles.externalActionPressed,
@@ -483,9 +670,9 @@ function GoogleModeIA({ busy, barcode, onPress }) {
       </View>
 
       <View style={styles.externalActionContent}>
-        <Text style={styles.externalActionTitle}>Google Modo IA</Text>
+        <Text style={styles.externalActionTitle}>{jsonSearchTitle}</Text>
         <Text style={styles.externalActionDescription}>
-          Respuesta generada a partir del código
+          {jsonSearchDescription}
         </Text>
       </View>
 
@@ -718,8 +905,11 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [details, setDetails] = useState({});
   const [notes, setNotes] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [pastedImageUri, setPastedImageUri] = useState("");
   const [thumbnailUri, setThumbnailUri] = useState("");
   const [productUrl, setProductUrl] = useState("");
+  const [musicJson, setMusicJson] = useState("");
+  const [bookJson, setBookJson] = useState("");
   const [pastingImage, setPastingImage] = useState(false);
   const [clipboardImageAvailable, setClipboardImageAvailable] = useState(false);
   const [imageSizeBytes, setImageSizeBytes] = useState(null);
@@ -734,11 +924,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
     deleting;
 
   const visibleError = localError || lookupError;
+  const displayedImageUri = pastedImageUri || imageUrl;
 
   useEffect(() => {
-    setImageSizeBytes(getDataUrlSizeBytes(imageUrl));
+    setImageSizeBytes(getDataUrlSizeBytes(pastedImageUri));
     setThumbnailSizeBytes(getDataUrlSizeBytes(thumbnailUri));
-  }, [imageUrl, thumbnailUri]);
+  }, [pastedImageUri, thumbnailUri]);
 
   const readClipboardImage = useCallback(async () => {
     if (
@@ -842,7 +1033,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         ]);
 
         setThumbnailUri(thumbnailDataUrl);
-        setImageUrl(detailDataUrl);
+        setPastedImageUri(detailDataUrl);
         setClipboardImageAvailable(false);
         return;
       }
@@ -913,7 +1104,16 @@ export default function EditScannedItemScreen({ route, navigation }) {
           : {},
       );
       setNotes(normalizeString(nextProduct.notes));
-      setImageUrl(getProductImageUrl(nextProduct));
+      const nextImage = getProductImageUrl(nextProduct);
+      if (nextImage.startsWith("data:image/")) {
+        // Compatibilidad con registros antiguos: las imágenes pegadas se
+        // separan del campo visible reservado exclusivamente para URLs.
+        setPastedImageUri(nextImage);
+        setImageUrl("");
+      } else {
+        setPastedImageUri("");
+        setImageUrl(nextImage);
+      }
       setThumbnailUri(
         normalizeString(nextProduct.thumbnailUri || nextProduct.thumbnailUrl),
       );
@@ -1102,6 +1302,10 @@ export default function EditScannedItemScreen({ route, navigation }) {
     setLocalError(null);
 
     try {
+      // El formulario mantiene separados la URL y el contenido pegado. El
+      // backend conserva el campo histórico imageUrl hasta que el modelo de
+      // datos disponga de un campo binario propio.
+      const persistedImage = normalizeString(pastedImageUri || imageUrl);
       const normalizedDetails = Object.fromEntries(
         Object.entries(details || {})
           .map(([key, value]) => [key, normalizeString(value)])
@@ -1117,7 +1321,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           productType: normalizeString(productType) || undefined,
           details: normalizedDetails,
           notes: normalizeString(notes) || undefined,
-          imageUrl: normalizeString(imageUrl) || undefined,
+          imageUrl: persistedImage || undefined,
           thumbnailUri: normalizeString(thumbnailUri) || undefined,
           productUrl: normalizeString(productUrl) || undefined,
           source: "user_review",
@@ -1132,7 +1336,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           productType: normalizeString(productType),
           details: normalizedDetails,
           notes: normalizeString(notes),
-          imageUrl: normalizeString(imageUrl),
+          imageUrl: persistedImage,
           thumbnailUri: normalizeString(thumbnailUri),
           url: normalizeString(productUrl),
           productUrl: normalizeString(productUrl),
@@ -1154,7 +1358,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         productType: normalizeString(productType) || undefined,
         details: normalizedDetails,
         notes: normalizeString(notes) || undefined,
-        imageUrl: normalizeString(imageUrl) || undefined,
+        imageUrl: persistedImage || undefined,
         thumbnailUri: normalizeString(thumbnailUri) || undefined,
         productUrl: normalizeString(productUrl) || undefined,
         source: "manual",
@@ -1169,7 +1373,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         productType: normalizeString(productType),
         details: normalizedDetails,
         notes: normalizeString(notes),
-        imageUrl: normalizeString(imageUrl),
+        imageUrl: persistedImage,
         thumbnailUri: normalizeString(thumbnailUri),
         url: normalizeString(productUrl),
         productUrl: normalizeString(productUrl),
@@ -1204,6 +1408,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
     details,
     notes,
     imageUrl,
+    pastedImageUri,
     thumbnailUri,
     productUrl,
     saveProductData,
@@ -1255,11 +1460,128 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
     try {
       setLocalError(null);
-      await openGoogleAIMode(barcode);
+      const query = isMusicProductType(productType)
+        ? buildMusicCdLookupPrompt(barcode)
+        : isBookProductType(productType)
+          ? buildBookLookupPrompt(barcode)
+          : barcode;
+      await openGoogleAIMode(query);
     } catch (error) {
       setLocalError(error?.message || "No se pudo abrir Google Modo IA.");
     }
-  }, [barcode]);
+  }, [barcode, productType]);
+
+  const handleApplyMusicJson = useCallback(() => {
+    try {
+      setLocalError(null);
+      const data = parseMusicJson(musicJson);
+      const jsonBarcode = normalizeBarcode(
+        data.barcode || data.ean13 || data.upcA,
+      );
+
+      if (jsonBarcode && barcode && jsonBarcode !== barcode) {
+        throw new Error(
+          `El JSON corresponde al código ${jsonBarcode}, no a ${barcode}.`,
+        );
+      }
+
+      const nextDetails = {
+        artist: joinJsonValues(data.primaryArtist, data.artists),
+        composer: joinJsonValues(data.composer, data.composers),
+        format: normalizeString(data.physicalFormat || data.support),
+        discCount: normalizeString(data.numberOfDiscs || data.discCount),
+        subcategory: normalizeString(data.subcategory || data.subgenre),
+        label: normalizeString(data.label),
+        releaseYear: normalizeString(data.releaseYear || data.releaseDate),
+      };
+
+      setProductType("Música");
+      if (normalizeString(data.title)) setName(normalizeString(data.title));
+      if (normalizeString(data.category || data.genre)) {
+        setCategory(normalizeString(data.category || data.genre));
+      }
+      setDetails((current) => {
+        const merged = { ...current };
+        Object.entries(nextDetails).forEach(([key, value]) => {
+          if (value) merged[key] = value;
+        });
+        return merged;
+      });
+      if (normalizeString(data.coverImageUrl)) {
+        setImageUrl(normalizeString(data.coverImageUrl));
+      }
+      if (normalizeString(data.productPageUrl)) {
+        setProductUrl(normalizeString(data.productPageUrl));
+      }
+      if (normalizeString(data.description || data.contentsSummary)) {
+        setNotes(joinJsonValues(data.description, data.contentsSummary));
+      }
+      setMusicJson("");
+    } catch (error) {
+      setLocalError(
+        error instanceof SyntaxError
+          ? "El texto pegado no es un JSON válido. Copia únicamente el objeto JSON."
+          : error?.message || "No se pudo aplicar la ficha musical.",
+      );
+    }
+  }, [barcode, musicJson]);
+
+  const handleApplyBookJson = useCallback(() => {
+    try {
+      setLocalError(null);
+      const data = parseMusicJson(bookJson);
+      const jsonBarcode = normalizeBarcode(
+        data.barcode || data.isbn13 || data.isbn10,
+      );
+
+      if (jsonBarcode && barcode && jsonBarcode !== barcode) {
+        throw new Error(
+          `El JSON corresponde al código ${jsonBarcode}, no a ${barcode}.`,
+        );
+      }
+
+      const nextDetails = {
+        subtitle: normalizeString(data.subtitle),
+        authors: joinJsonValues(data.authors, data.author),
+        isbn10: normalizeString(data.isbn10),
+        isbn13: normalizeString(data.isbn13),
+        publisher: normalizeString(data.publisher),
+        collection: normalizeString(data.collection || data.series),
+        edition: normalizeString(data.edition),
+        publicationYear: normalizeString(
+          data.publicationYear || data.publicationDate,
+        ),
+        language: normalizeString(data.language),
+        pageCount: normalizeString(data.pageCount),
+        genre: normalizeString(data.genre || data.category),
+        format: normalizeString(data.physicalFormat || data.format),
+        synopsis: normalizeString(data.synopsis || data.description),
+      };
+
+      setProductType("Libros");
+      if (normalizeString(data.title)) setName(normalizeString(data.title));
+      setDetails((current) => {
+        const merged = { ...current };
+        Object.entries(nextDetails).forEach(([key, value]) => {
+          if (value) merged[key] = value;
+        });
+        return merged;
+      });
+      if (normalizeString(data.coverImageUrl)) {
+        setImageUrl(normalizeString(data.coverImageUrl));
+      }
+      if (normalizeString(data.productPageUrl)) {
+        setProductUrl(normalizeString(data.productPageUrl));
+      }
+      setBookJson("");
+    } catch (error) {
+      setLocalError(
+        error instanceof SyntaxError
+          ? "El texto pegado no es un JSON válido. Copia únicamente el objeto JSON."
+          : error?.message || "No se pudo aplicar la ficha del libro.",
+      );
+    }
+  }, [barcode, bookJson]);
 
   if (userIsLoading) {
     return (
@@ -1364,7 +1686,10 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 </View>
               </View>
 
-              <ProductImage uri={imageUrl} productName={resolvedName} />
+              <ProductImage
+                uri={displayedImageUri}
+                productName={resolvedName}
+              />
 
               {formatKilobytes(imageSizeBytes) ||
               formatKilobytes(thumbnailSizeBytes) ? (
@@ -1386,55 +1711,6 @@ export default function EditScannedItemScreen({ route, navigation }) {
                   </Text>
                 </View>
               ) : null}
-
-              <View style={styles.imageClipboardActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Pegar imagen desde el portapapeles"
-                  accessibilityState={{
-                    disabled: pastingImage || !clipboardImageAvailable,
-                  }}
-                  style={({ pressed }) => [
-                    styles.pasteImageButton,
-                    pressed && styles.pasteImageButtonPressed,
-                    (pastingImage || !clipboardImageAvailable) &&
-                      styles.pasteImageButtonDisabled,
-                  ]}
-                  onPress={handlePasteProductImage}
-                  disabled={pastingImage || !clipboardImageAvailable}
-                >
-                  {pastingImage ? (
-                    <ActivityIndicator size="small" color="#175CD3" />
-                  ) : (
-                    <Ionicons
-                      name="clipboard-outline"
-                      size={18}
-                      color="#175CD3"
-                    />
-                  )}
-                  <Text style={styles.pasteImageButtonText}>
-                    {pastingImage
-                      ? "Pegando imagen..."
-                      : "Pegar imagen del portapapeles"}
-                  </Text>
-                </Pressable>
-
-                {clipboardImageAvailable ? (
-                  <View
-                    style={styles.clipboardImageNotice}
-                    accessibilityLiveRegion="polite"
-                  >
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={17}
-                      color="#027A48"
-                    />
-                    <Text style={styles.clipboardImageNoticeText}>
-                      Hay una imagen copiada en el portapapeles
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
             </View>
 
             <StatusCard
@@ -1458,11 +1734,14 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
                 <Ionicons name="open-outline" size={20} color="#667085" />
               </View>
-              <GoogleModeIA
-                busy={busy}
-                barcode={barcode}
-                onPress={handleGoogleAIModeSearch}
-              />
+              {!isMusicProductType(productType) &&
+              !isBookProductType(productType) ? (
+                <GoogleModeIA
+                  busy={busy}
+                  barcode={barcode}
+                  onPress={handleGoogleAIModeSearch}
+                />
+              ) : null}
               <ExternalSearchButton
                 busy={busy}
                 barcode={barcode}
@@ -1504,7 +1783,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
                   productType === "Libros"
                     ? "Título"
                     : productType === "Música"
-                      ? "Título del álbum"
+                      ? "Título"
                       : "Nombre"
                 }
                 value={name}
@@ -1513,7 +1792,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
                   productType === "Libros"
                     ? "Título del libro"
                     : productType === "Música"
-                      ? "Título del álbum"
+                      ? "Título de la obra o álbum"
                       : "Nombre del producto"
                 }
               />
@@ -1522,6 +1801,108 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 value={productType}
                 onChange={setProductType}
               />
+
+              {isMusicProductType(productType) ? (
+                <>
+                  <View style={styles.musicJsonSearchAction}>
+                    <GoogleModeIA
+                      busy={busy}
+                      barcode={barcode}
+                      musicJsonSearch
+                      onPress={handleGoogleAIModeSearch}
+                    />
+                  </View>
+                  <View style={styles.musicJsonImporter}>
+                    <Text style={styles.label}>JSON de la ficha musical</Text>
+                    <Text style={styles.musicJsonDescription}>
+                      Copia la respuesta de Google Modo IA, pégala aquí y
+                      aplícala para rellenar los campos.
+                    </Text>
+                    <TextInput
+                      value={musicJson}
+                      onChangeText={setMusicJson}
+                      placeholder={'{"barcode":"...","title":"..."}'}
+                      placeholderTextColor="#98A2B3"
+                      multiline
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.musicJsonInput}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Aplicar JSON a la ficha musical"
+                      disabled={busy || !normalizeString(musicJson)}
+                      onPress={handleApplyMusicJson}
+                      style={({ pressed }) => [
+                        styles.applyJsonButton,
+                        pressed && styles.applyJsonButtonPressed,
+                        (busy || !normalizeString(musicJson)) &&
+                          styles.disabledButton,
+                      ]}
+                    >
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.applyJsonButtonText}>
+                        Aplicar datos del JSON
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
+
+              {isBookProductType(productType) ? (
+                <>
+                  <View style={styles.musicJsonSearchAction}>
+                    <GoogleModeIA
+                      busy={busy}
+                      barcode={barcode}
+                      bookJsonSearch
+                      onPress={handleGoogleAIModeSearch}
+                    />
+                  </View>
+                  <View style={styles.musicJsonImporter}>
+                    <Text style={styles.label}>JSON de la ficha del libro</Text>
+                    <Text style={styles.musicJsonDescription}>
+                      Copia la respuesta de Google Modo IA, pégala aquí y
+                      aplícala para rellenar los campos.
+                    </Text>
+                    <TextInput
+                      value={bookJson}
+                      onChangeText={setBookJson}
+                      placeholder={'{"barcode":"...","title":"..."}'}
+                      placeholderTextColor="#98A2B3"
+                      multiline
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.musicJsonInput}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Aplicar JSON a la ficha del libro"
+                      disabled={busy || !normalizeString(bookJson)}
+                      onPress={handleApplyBookJson}
+                      style={({ pressed }) => [
+                        styles.applyJsonButton,
+                        pressed && styles.applyJsonButtonPressed,
+                        (busy || !normalizeString(bookJson)) &&
+                          styles.disabledButton,
+                      ]}
+                    >
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.applyJsonButtonText}>
+                        Aplicar datos del JSON
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
 
               {!productType || productType === "Supermercado" ? (
                 <View style={styles.formGrid}>
@@ -1544,6 +1925,15 @@ export default function EditScannedItemScreen({ route, navigation }) {
                     />
                   </View>
                 </View>
+              ) : null}
+
+              {isMusicProductType(productType) ? (
+                <FormField
+                  label="Categoría"
+                  value={category}
+                  onChangeText={setCategory}
+                  placeholder="Ej. Música clásica"
+                />
               ) : null}
 
               <ProductDetailsFields
@@ -1581,6 +1971,56 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 autoCorrect={false}
                 keyboardType="url"
               />
+
+              <View style={styles.clipboardField}>
+                <Text style={styles.label}>Imagen del portapapeles</Text>
+                <Text style={styles.clipboardFieldDescription}>
+                  Copia una imagen en Safari o Chrome y pégala directamente en
+                  la ficha del producto.
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Pegar imagen desde el portapapeles"
+                  accessibilityState={{ disabled: pastingImage }}
+                  style={({ pressed }) => [
+                    styles.pasteImageButton,
+                    pressed && styles.pasteImageButtonPressed,
+                    pastingImage && styles.pasteImageButtonDisabled,
+                  ]}
+                  onPress={handlePasteProductImage}
+                  disabled={pastingImage}
+                >
+                  {pastingImage ? (
+                    <ActivityIndicator size="small" color="#175CD3" />
+                  ) : (
+                    <Ionicons
+                      name="clipboard-outline"
+                      size={18}
+                      color="#175CD3"
+                    />
+                  )}
+                  <Text style={styles.pasteImageButtonText}>
+                    {pastingImage ? "Pegando imagen..." : "Pegar imagen"}
+                  </Text>
+                </Pressable>
+
+                {clipboardImageAvailable ? (
+                  <View
+                    style={styles.clipboardImageNotice}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={17}
+                      color="#027A48"
+                    />
+                    <Text style={styles.clipboardImageNoticeText}>
+                      Hay una imagen copiada en el portapapeles
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
 
             <View style={styles.card}>
@@ -2058,6 +2498,65 @@ const styles = StyleSheet.create({
     borderTopColor: "#EAECF0",
   },
 
+  musicJsonImporter: {
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 16,
+    backgroundColor: "#EFF6FF",
+  },
+
+  musicJsonSearchAction: {
+    marginTop: 14,
+  },
+
+  musicJsonDescription: {
+    marginTop: 4,
+    marginBottom: 10,
+    color: "#475467",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+
+  musicJsonInput: {
+    minHeight: 130,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#D0D5DD",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    color: "#101828",
+    fontSize: 12,
+    lineHeight: 18,
+    textAlignVertical: "top",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+
+  applyJsonButton: {
+    minHeight: 46,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  applyJsonButtonPressed: {
+    backgroundColor: "#1D4ED8",
+  },
+
+  applyJsonButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
   detailsGrid: {
     marginTop: 14,
   },
@@ -2129,6 +2628,21 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 92,
     textAlignVertical: "top",
+  },
+
+  clipboardField: {
+    marginTop: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#D0D5DD",
+    borderRadius: 14,
+    backgroundColor: "#F9FAFB",
+  },
+
+  clipboardFieldDescription: {
+    color: "#667085",
+    fontSize: 13,
+    lineHeight: 19,
   },
 
   pasteImageButton: {
