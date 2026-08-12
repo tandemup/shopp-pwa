@@ -123,17 +123,21 @@ un único botón Copiar.`;
 function buildBookLookupPrompt(barcode) {
   const normalizedBarcode = normalizeString(barcode);
 
-  return `Busca información bibliográfica fiable y actualizada sobre un libro cuyo código de barras es ${normalizedBarcode}.
+  return `Busca información bibliográfica fiable sobre el libro cuyo código de barras es ${normalizedBarcode}.
 
-Valida si el código es ISBN-10, ISBN-13 o EAN-13. Convierte entre ISBN-10 e ISBN-13 cuando sea matemáticamente posible y comprueba los dígitos de control. Identifica la edición exacta sin mezclar idiomas, editoriales, países, encuadernaciones, reimpresiones ni ediciones distintas. Contrasta los datos, si es posible, en al menos dos fuentes fiables como la editorial, ISBNdb, Google Books, Open Library, WorldCat o catálogos de bibliotecas nacionales.
+Elimina espacios y guiones del código. Determina si es ISBN-10, ISBN-13 o un EAN-13 que contiene un ISBN y comprueba matemáticamente su dígito de control. Si empieza por 978, calcula el ISBN-10 equivalente y vuelve a validar su dígito de control. No devuelvas ningún ISBN convertido que no supere la validación.
+
+Identifica exactamente la edición asociada al ISBN. No mezcles otras editoriales, idiomas, países, encuadernaciones, reimpresiones o ediciones. Contrasta los datos en al menos dos fuentes que muestren el mismo ISBN y la misma edición. Prioriza la editorial, la Agencia ISBN o biblioteca nacional, WorldCat, Google Books, Open Library y librerías reconocidas. No marques el resultado como verified si las fuentes no confirman el mismo ISBN y edición.
 
 Localiza una imagen pública de la cubierta frontal correspondiente exactamente a esta edición e ISBN. Comprueba mediante el título, autores, editorial, año e ISBN que no sea la cubierta de otra edición. Prioriza la editorial y catálogos bibliográficos fiables. Busca una imagen nítida y de buena resolución, preferentemente JPEG.
 
-coverImageUrl debe ser una URL pública directa al archivo de imagen, no una página HTML, una URL de búsqueda ni una miniatura de baja calidad. Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la cubierta. Si solo existe en PNG o WebP, devuelve la URL original y especifica el formato real. No inventes una URL, no cambies su extensión y no declares JPEG si los bytes corresponden a otro formato. Si no puedes verificar la cubierta exacta, usa null en todos sus campos y explica el motivo en verificationNotes.
+coverImageUrl debe ser una URL pública directa al archivo de imagen, no solamente un dominio, una página HTML, una URL de búsqueda ni una miniatura de baja calidad. No uses imágenes genéricas o de "portada no disponible". Comprueba que sea accesible y devuelve también su formato real, anchura, altura y la página donde verificaste la cubierta. Si solo existe en PNG o WebP, devuelve la URL original y especifica el formato real. No inventes ni construyas una URL, no cambies su extensión y no declares JPEG si el archivo tiene otro formato. Si no encuentras una imagen directa verificable, usa null en todos los campos de cubierta y explica el motivo en verificationNotes.
+
+Todas las URL deben ser texto plano, completo y en una sola línea. No uses enlaces Markdown con formato [texto](URL), espacios ni saltos de línea dentro de una URL. coverImageSourceUrl debe ser la página concreta donde verificaste la cubierta y productPageUrl la página concreta de esta edición.
 
 No inventes datos: usa null cuando no puedan verificarse.
 
-Devuelve exclusivamente un objeto dentro de un único bloque de código JSON, sin explicaciones antes ni después, con esta estructura exacta:
+Devuelve exclusivamente un objeto dentro de un único bloque de código JSON, sin explicaciones antes ni después. Usa comillas dobles, no introduzcas saltos de línea dentro de strings y conserva estos tipos: authors y sourceUrls son arrays de strings; publicationYear, pageCount, coverImageWidth y coverImageHeight son números o null; los demás campos son strings o null. Usa esta estructura exacta:
 {
   "barcode": "${normalizedBarcode}",
   "barcodeType": null,
@@ -165,7 +169,7 @@ Devuelve exclusivamente un objeto dentro de un único bloque de código JSON, si
   "verificationNotes": null
 }
 
-Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. No uses imágenes genéricas, marcadores de "portada no disponible" ni cubiertas que no coincidan con el ISBN de esta edición. No dividas el JSON en varios bloques. El bloque debe contener un JSON válido y completo para que la interfaz muestre un único botón Copiar.`;
+Usa fechas YYYY-MM-DD o YYYY. verificationStatus solo puede ser verified, partially_verified o unverified. Antes de responder comprueba internamente que el JSON sea válido, que ambos ISBN tengan dígitos de control válidos, que coverImageUrl sea una imagen directa y que ninguna URL contenga Markdown, espacios o saltos de línea. No dividas el JSON en varios bloques. El bloque debe contener un JSON válido y completo para que la interfaz muestre un único botón Copiar.`;
 }
 
 function normalizeString(value) {
@@ -187,9 +191,15 @@ function isBookProductType(value) {
 }
 
 function parseMusicJson(value) {
-  const cleanedValue = normalizeString(value)
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
+  const normalizedValue = normalizeString(value);
+  const fencedMatch = normalizedValue.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fencedMatch ? fencedMatch[1] : normalizedValue;
+  const firstBrace = candidate.indexOf("{");
+  const lastBrace = candidate.lastIndexOf("}");
+  const cleanedValue =
+    firstBrace >= 0 && lastBrace > firstBrace
+      ? candidate.slice(firstBrace, lastBrace + 1)
+      : candidate;
 
   if (!cleanedValue) {
     throw new Error("Pega primero el JSON obtenido en la búsqueda.");
@@ -202,6 +212,15 @@ function parseMusicJson(value) {
   }
 
   return parsed;
+}
+
+function normalizeExternalUrl(value) {
+  const normalizedValue = normalizeString(value);
+  const markdownMatch = normalizedValue.match(
+    /^\[[^\]]*\]\((https?:\/\/[^)]+)\)$/i,
+  );
+  const plainValue = normalizeString(markdownMatch?.[1] || normalizedValue);
+  return /^https?:\/\/\S+$/i.test(plainValue) ? plainValue : "";
 }
 
 function joinJsonValues(...values) {
@@ -1508,10 +1527,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
         return merged;
       });
       if (normalizeString(data.coverImageUrl)) {
-        setImageUrl(normalizeString(data.coverImageUrl));
+        const nextImageUrl = normalizeExternalUrl(data.coverImageUrl);
+        if (nextImageUrl) setImageUrl(nextImageUrl);
       }
       if (normalizeString(data.productPageUrl)) {
-        setProductUrl(normalizeString(data.productPageUrl));
+        const nextProductUrl = normalizeExternalUrl(data.productPageUrl);
+        if (nextProductUrl) setProductUrl(nextProductUrl);
       }
       if (normalizeString(data.description || data.contentsSummary)) {
         setNotes(joinJsonValues(data.description, data.contentsSummary));
@@ -1568,10 +1589,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
         return merged;
       });
       if (normalizeString(data.coverImageUrl)) {
-        setImageUrl(normalizeString(data.coverImageUrl));
+        const nextImageUrl = normalizeExternalUrl(data.coverImageUrl);
+        if (nextImageUrl) setImageUrl(nextImageUrl);
       }
       if (normalizeString(data.productPageUrl)) {
-        setProductUrl(normalizeString(data.productPageUrl));
+        const nextProductUrl = normalizeExternalUrl(data.productPageUrl);
+        if (nextProductUrl) setProductUrl(nextProductUrl);
       }
       setBookJson("");
     } catch (error) {
