@@ -8,6 +8,7 @@ import React, {
 import {
   ActivityIndicator,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,82 @@ import {
   getProductUrl,
 } from "@/src/services/productLookup";
 
+const PASTED_IMAGE_MAX_SIZE = 256;
+const PASTED_IMAGE_QUALITY = 0.86;
+
+function loadImageFromBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new window.Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No se pudo leer la imagen copiada."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function clipboardImageToJpegDataUrl() {
+  if (
+    Platform.OS !== "web" ||
+    typeof navigator === "undefined" ||
+    typeof navigator.clipboard?.read !== "function"
+  ) {
+    throw new Error(
+      "Pegar imágenes está disponible en la PWA mediante un navegador compatible.",
+    );
+  }
+
+  const clipboardItems = await navigator.clipboard.read();
+  const clipboardItem = clipboardItems.find((item) => {
+    return item.types.some((type) => type.startsWith("image/"));
+  });
+
+  if (!clipboardItem) {
+    throw new Error("No hay ninguna imagen copiada en el portapapeles.");
+  }
+
+  const imageType = clipboardItem.types.find((type) => {
+    return type.startsWith("image/");
+  });
+  const blob = await clipboardItem.getType(imageType);
+  const sourceImage = await loadImageFromBlob(blob);
+  const largestSide = Math.max(
+    sourceImage.naturalWidth,
+    sourceImage.naturalHeight,
+  );
+  const scale = Math.min(1, PASTED_IMAGE_MAX_SIZE / largestSide);
+  const width = Math.max(1, Math.round(sourceImage.naturalWidth * scale));
+  const height = Math.max(1, Math.round(sourceImage.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("El navegador no pudo preparar la imagen.");
+  }
+
+  context.fillStyle = "#FFFFFF";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(sourceImage, 0, 0, width, height);
+
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", PASTED_IMAGE_QUALITY),
+    width,
+    height,
+  };
+}
+
 export default function ProductInfoScreen({ route, navigation }) {
   const { width } = useWindowDimensions();
   const isWideScreen = width >= 760;
@@ -47,6 +124,8 @@ export default function ProductInfoScreen({ route, navigation }) {
   const [product, setProduct] = useState(initialProduct);
   const [fromCache, setFromCache] = useState(initialFromCache);
   const [localError, setLocalError] = useState(null);
+  const [pastingImage, setPastingImage] = useState(false);
+  const [pasteMessage, setPasteMessage] = useState("");
 
   const loadedBarcodeRef = useRef(null);
 
@@ -161,6 +240,42 @@ export default function ProductInfoScreen({ route, navigation }) {
     }
   }, [barcode]);
 
+  const handlePasteImage = useCallback(async () => {
+    try {
+      setPastingImage(true);
+      setLocalError(null);
+      setPasteMessage("");
+
+      const pastedImage = await clipboardImageToJpegDataUrl();
+
+      setProduct((currentProduct) => ({
+        ...(currentProduct || {}),
+        id: currentProduct?.id || barcode,
+        barcode,
+        imageUrl: pastedImage.dataUrl,
+        imageUri: pastedImage.dataUrl,
+        imageWidth: pastedImage.width,
+        imageHeight: pastedImage.height,
+        imageFormat: "jpeg",
+      }));
+      setFromCache(false);
+      setPasteMessage(
+        `Imagen pegada: ${pastedImage.width} × ${pastedImage.height} px · JPEG`,
+      );
+    } catch (err) {
+      const permissionDenied =
+        err?.name === "NotAllowedError" || err?.name === "SecurityError";
+
+      setLocalError(
+        permissionDenied
+          ? "El navegador no permitió leer el portapapeles. Abre la PWA mediante HTTPS, copia de nuevo la imagen y pulsa «Pegar imagen»."
+          : err?.message || "No se pudo pegar la imagen copiada.",
+      );
+    } finally {
+      setPastingImage(false);
+    }
+  }, [barcode]);
+
   const handleEdit = useCallback(() => {
     navigation.navigate(ROUTES.EDIT_SCANNED_ITEM, {
       barcode,
@@ -216,21 +331,50 @@ export default function ProductInfoScreen({ route, navigation }) {
         <View
           style={[styles.productCard, isWideScreen && styles.productCardWide]}
         >
-          {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={[
-                styles.productImage,
-                isWideScreen && styles.productImageWide,
-              ]}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.imagePlaceholderText}>Sin imagen</Text>
-            </View>
-          )}
+          <View
+            style={[styles.imageArea, isWideScreen && styles.imageAreaWide]}
+          >
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={[
+                  styles.productImage,
+                  isWideScreen && styles.productImageWide,
+                ]}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.imagePlaceholderText}>Sin imagen</Text>
+              </View>
+            )}
+
+            {Platform.OS === "web" ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Pegar imagen copiada"
+                style={({ pressed }) => [
+                  styles.pasteImageButton,
+                  pressed && styles.pasteImageButtonPressed,
+                  pastingImage && styles.pasteImageButtonDisabled,
+                ]}
+                disabled={pastingImage}
+                onPress={handlePasteImage}
+              >
+                {pastingImage ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : null}
+                <Text style={styles.pasteImageButtonText}>
+                  {pastingImage ? "Pegando imagen..." : "Pegar imagen copiada"}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {pasteMessage ? (
+              <Text style={styles.pasteMessage}>{pasteMessage}</Text>
+            ) : null}
+          </View>
 
           <View style={isWideScreen ? styles.productDetailsWide : null}>
             <Text style={styles.productName}>{displayName}</Text>
@@ -430,6 +574,15 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginBottom: 0,
   },
+  imageArea: {
+    width: "100%",
+    marginBottom: 16,
+  },
+  imageAreaWide: {
+    width: 340,
+    flexShrink: 0,
+    marginBottom: 0,
+  },
   productDetailsWide: {
     flex: 1,
     minWidth: 0,
@@ -441,6 +594,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+  },
+  pasteImageButton: {
+    minHeight: 44,
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pasteImageButtonPressed: {
+    backgroundColor: "#1D4ED8",
+  },
+  pasteImageButtonDisabled: {
+    opacity: 0.65,
+  },
+  pasteImageButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  pasteMessage: {
+    marginTop: 8,
+    color: "#166534",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
   },
   imagePlaceholderText: {
     color: "#6B7280",
