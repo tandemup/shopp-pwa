@@ -5,7 +5,6 @@ import { ROUTES } from "@/src/navigation/ROUTES";
 import { DEFAULT_HEADER_OPTIONS } from "@/src/utils/layout/headerStyles";
 
 import MenuScreen from "@/src/screens/settings/MenuScreen";
-import SearchEngines from "@/src/screens/settings/SearchEngines";
 import BarcodeSettingsScreen from "@/src/screens/settings/BarcodeSettingsScreen";
 import ProfileScreen from "@/src/screens/profile/ProfileScreen";
 import AdminUsersScreen from "@/src/screens/admin/AdminUsersScreen";
@@ -25,21 +24,9 @@ export default function MenuStack() {
       />
 
       <Stack.Screen
-        name={ROUTES.SEARCH_ENGINE_SETTINGS}
-        component={SearchEngines}
-        options={{ title: "Motor de búsqueda" }}
-      />
-
-      <Stack.Screen
         name={ROUTES.PROFILE}
         component={ProfileScreen}
         options={{ title: "Mi perfil" }}
-      />
-
-      <Stack.Screen
-        name={ROUTES.SEARCH_ENGINES}
-        component={SearchEngines}
-        options={{ title: "Motor de búsqueda" }}
       />
 
       <Stack.Screen

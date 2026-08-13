@@ -126,6 +126,8 @@ export default function NewProductScannerScreen2() {
 
     manualBarcode = "",
 
+    productType = "Supermercado",
+
     saveToHistory: routeSaveToHistory = null,
 
     listId = null,
@@ -306,6 +308,7 @@ export default function NewProductScannerScreen2() {
         itemId,
 
         scannedBarcode: barcode,
+        productType,
       },
     };
 
@@ -386,6 +389,8 @@ export default function NewProductScannerScreen2() {
 
         source: cachedItem.source || "scanner",
 
+        productType,
+
         updatedAt: now,
       };
 
@@ -405,6 +410,8 @@ export default function NewProductScannerScreen2() {
       barcode,
 
       name: product?.name || cachedItem?.name || "",
+
+      productType,
 
       brand: product?.brand || cachedItem?.brand || "",
 
@@ -446,6 +453,8 @@ export default function NewProductScannerScreen2() {
         barcode,
 
         product: scannedItem,
+
+        productType,
 
         autoOpenEngine,
       });

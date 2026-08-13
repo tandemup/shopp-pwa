@@ -1,7 +1,14 @@
 // screens/scanner/ScannerTabScreen.js
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, StyleSheet, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -13,7 +20,31 @@ import { ROUTES } from "@/src/navigation/ROUTES";
 import { api } from "@/convex/_generated/api";
 import { DEFAULT_BARCODE_SETTINGS } from "@/src/constants/barcodeFormats";
 import { getBarcodeSettings } from "@/src/storage/barcodeSettingsStorage";
+import {
+  DEFAULT_SEARCH_SETTINGS,
+  getSearchSettings,
+} from "@/src/storage/settingsStorage";
+import { SEARCH_ENGINES } from "@/src/constants/searchEngines";
 import { buildHeaderConfig } from "@/src/utils/layout/headerStyles";
+
+const PRODUCT_TYPES = [
+  { id: "Supermercado", label: "Supermercado", icon: "cart-outline" },
+  { id: "Libros", label: "Libros", icon: "book-outline" },
+  { id: "Música", label: "Música", icon: "musical-notes-outline" },
+];
+
+function buildProductSearchEngineSubtitle(settings) {
+  const engineId =
+    settings?.selectedProductEngine ||
+    settings?.generalEngine ||
+    DEFAULT_SEARCH_SETTINGS?.selectedProductEngine ||
+    DEFAULT_SEARCH_SETTINGS?.generalEngine ||
+    "google";
+  const engine = SEARCH_ENGINES?.[engineId];
+  const engineLabel = engine?.label || engine?.name || engineId;
+
+  return `Motor activo: ${engineLabel}`;
+}
 
 function getEnabledBarcodeTypes(settings) {
   const formats = settings?.formats ?? DEFAULT_BARCODE_SETTINGS.formats;
@@ -41,6 +72,9 @@ export default function ScannerTabScreen({ navigation }) {
   );
   const [manualBarcode, setManualBarcode] = useState("");
   const [manualBarcodeError, setManualBarcodeError] = useState("");
+  const [productType, setProductType] = useState("Supermercado");
+  const [productSearchEngineSubtitle, setProductSearchEngineSubtitle] =
+    useState("Motor activo: Google");
 
   const headerConfig = useMemo(
     () =>
@@ -80,6 +114,24 @@ export default function ScannerTabScreen({ navigation }) {
 
       loadBarcodeSettings();
 
+      getSearchSettings()
+        .then((settings) => {
+          if (mounted) {
+            setProductSearchEngineSubtitle(
+              buildProductSearchEngineSubtitle(settings),
+            );
+          }
+        })
+        .catch((error) => {
+          console.warn("[ScannerTabScreen] search settings error", error);
+
+          if (mounted) {
+            setProductSearchEngineSubtitle(
+              buildProductSearchEngineSubtitle(DEFAULT_SEARCH_SETTINGS),
+            );
+          }
+        });
+
       return () => {
         mounted = false;
       };
@@ -93,11 +145,20 @@ export default function ScannerTabScreen({ navigation }) {
     navigation.navigate(ROUTES.NEW_PRODUCT_SCANNER2, {
       saveToHistory: true,
       barcodeTypes: enabledBarcodeTypes,
+      productType,
     });
   };
 
   const goToScannedHistory = () => {
     navigation.navigate(ROUTES.SCANNED_HISTORY);
+  };
+
+  const goToProductSearchEngines = () => {
+    navigation.navigate(ROUTES.SEARCH_ENGINES, { type: "product" });
+  };
+
+  const goToBookSearchEngines = () => {
+    navigation.navigate(ROUTES.SEARCH_ENGINES, { type: "book" });
   };
 
   const handleManualBarcodeChange = (value) => {
@@ -122,6 +183,7 @@ export default function ScannerTabScreen({ navigation }) {
       manualBarcode: barcode,
       saveToHistory: true,
       barcodeTypes: enabledBarcodeTypes,
+      productType,
     });
   };
 
@@ -134,12 +196,55 @@ export default function ScannerTabScreen({ navigation }) {
       <StatusBar {...headerConfig.statusBar} />
 
       <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.title}>Scanner</Text>
           <Text style={styles.description}>
             Escanea nuevos productos o consulta el historial de códigos
             escaneados.
           </Text>
+
+          <View style={styles.productTypeSection}>
+            <Text style={styles.productTypeLabel}>Tipo de producto</Text>
+            <View style={styles.productTypeOptions}>
+              {PRODUCT_TYPES.map((option) => {
+                const selected = productType === option.id;
+
+                return (
+                  <Pressable
+                    key={option.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Tipo de producto: ${option.label}`}
+                    onPress={() => setProductType(option.id)}
+                    style={({ pressed }) => [
+                      styles.productTypeButton,
+                      selected && styles.productTypeButtonSelected,
+                      pressed && styles.productTypeButtonPressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name={option.icon}
+                      size={20}
+                      color={selected ? "#FFFFFF" : "#475569"}
+                    />
+                    <Text
+                      style={[
+                        styles.productTypeButtonText,
+                        selected && styles.productTypeButtonTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -222,6 +327,52 @@ export default function ScannerTabScreen({ navigation }) {
               </View>
             ) : null}
 
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Búsqueda</Text>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={goToProductSearchEngines}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="search-outline" size={26} color="#111827" />
+              </View>
+
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Buscador de productos</Text>
+                <Text style={styles.cardSubtitle}>
+                  {productSearchEngineSubtitle}
+                </Text>
+              </View>
+
+              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={goToBookSearchEngines}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="book-outline" size={26} color="#111827" />
+              </View>
+
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>Buscador de libros</Text>
+                <Text style={styles.cardSubtitle}>
+                  Google Books, Open Library...
+                </Text>
+              </View>
+
+              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+            </Pressable>
+
             <Pressable
               style={({ pressed }) => [
                 styles.card,
@@ -275,7 +426,7 @@ export default function ScannerTabScreen({ navigation }) {
               </Pressable>
             ) : null}
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -299,11 +450,15 @@ const styles = StyleSheet.create({
     backgroundColor: SCREEN_BACKGROUND,
   },
 
-  content: {
+  scrollView: {
     flex: 1,
+  },
+
+  content: {
+    flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
 
   title: {
@@ -322,6 +477,69 @@ const styles = StyleSheet.create({
 
   actions: {
     gap: 12,
+  },
+
+  productTypeSection: {
+    marginBottom: 16,
+  },
+
+  productTypeLabel: {
+    marginBottom: 8,
+    color: TEXT_PRIMARY,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  productTypeOptions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  productTypeButton: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 64,
+    paddingHorizontal: 6,
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+  },
+
+  productTypeButtonSelected: {
+    borderColor: "#2563EB",
+    backgroundColor: "#2563EB",
+  },
+
+  productTypeButtonPressed: {
+    opacity: 0.78,
+  },
+
+  productTypeButtonText: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  productTypeButtonTextSelected: {
+    color: "#FFFFFF",
+  },
+
+  sectionHeader: {
+    marginTop: 6,
+  },
+
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   card: {

@@ -17,12 +17,6 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-import {
-  getSearchSettings,
-  DEFAULT_SEARCH_SETTINGS,
-} from "@/src/storage/settingsStorage";
-
-import { SEARCH_ENGINES } from "@/src/constants/searchEngines";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,21 +148,6 @@ function openAdminEmail() {
   );
 
   Linking.openURL(`mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`);
-}
-
-function buildProductSearchEngineSubtitle(settings) {
-  const engineId =
-    settings?.selectedProductEngine ||
-    settings?.generalEngine ||
-    DEFAULT_SEARCH_SETTINGS?.selectedProductEngine ||
-    DEFAULT_SEARCH_SETTINGS?.generalEngine ||
-    "google";
-
-  const engine = SEARCH_ENGINES?.[engineId];
-
-  const engineLabel = engine?.label || engine?.name || engineId;
-
-  return `Motor activo: ${engineLabel}`;
 }
 
 function getPermissionLabel(permission) {
@@ -623,8 +602,6 @@ export default function MenuScreen({ navigation }) {
   const [locationPermission, setLocationPermission] = useState(null);
   const [exportingUserData, setExportingUserData] = useState(false);
   const [importingItems, setImportingItems] = useState(false);
-  const [productSearchEngineSubtitle, setProductSearchEngineSubtitle] =
-    useState("Motor activo: Google");
 
   const {
     activeLists,
@@ -838,18 +815,6 @@ export default function MenuScreen({ navigation }) {
     navigation.navigate(ROUTES.ADMIN_USERS);
   };
 
-  const goToProductSearchEngines = () => {
-    navigation.navigate(ROUTES.SEARCH_ENGINE_SETTINGS, {
-      type: "product",
-    });
-  };
-
-  const goToBookSearchEngines = () => {
-    navigation.navigate(ROUTES.SEARCH_ENGINE_SETTINGS, {
-      type: "book",
-    });
-  };
-
   const goToBarcodeSettings = () => {
     navigation.navigate(ROUTES.BARCODE_SETTINGS);
   };
@@ -1059,29 +1024,6 @@ export default function MenuScreen({ navigation }) {
     );
   };
 
-  const loadProductSearchEngineSubtitle = useCallback(async () => {
-    try {
-      const settings = await getSearchSettings();
-      const subtitle = buildProductSearchEngineSubtitle(settings);
-
-      setProductSearchEngineSubtitle(subtitle);
-    } catch (error) {
-      console.warn("[MenuScreen] product search settings error", error);
-
-      const fallbackSubtitle = buildProductSearchEngineSubtitle(
-        DEFAULT_SEARCH_SETTINGS,
-      );
-
-      setProductSearchEngineSubtitle(fallbackSubtitle);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadProductSearchEngineSubtitle();
-    }, [loadProductSearchEngineSubtitle]),
-  );
-
   function Email({ onPress }) {
     return (
       <View style={styles.section}>
@@ -1236,24 +1178,6 @@ export default function MenuScreen({ navigation }) {
               subtitle="Salir de tu cuenta de Shopp en este dispositivo"
               danger
               onPress={handleSignOut}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Búsqueda</Text>
-
-            <SettingsCard
-              icon="search-outline"
-              title="Product Search Engines"
-              subtitle={productSearchEngineSubtitle}
-              onPress={goToProductSearchEngines}
-            />
-
-            <SettingsCard
-              icon="book-outline"
-              title="Book Search Engines"
-              subtitle="Google Books, Open Library..."
-              onPress={goToBookSearchEngines}
             />
           </View>
 

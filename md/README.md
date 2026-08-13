@@ -1,37 +1,55 @@
-# Shopp PWA — documentación actual
+# Shopp PWA
 
-Shopp es una aplicación Expo/React Native para iOS, Android y Web/PWA. La versión actual usa Convex como backend central y Netlify como destino habitual de la versión web.
+Shopp es una aplicación Expo/React Native para iOS, Android y Web/PWA. Combina listas de compra, catálogo de productos por código de barras, tiendas, chat y parking colaborativo.
 
-## Funciones activas
+## Funciones actuales
 
-- Listas de compra, artículos, cantidades, precios, promociones e histórico.
-- Búsqueda y edición de productos mediante código de barras.
-- Historial de escaneos y caché de productos.
-- Catálogo de tiendas, favoritas, distancia, ubicación y mapas.
-- Chat por salas, moderación de enlaces y eliminación automática de mensajes caducados.
-- Parking colaborativo con destinos, estados, ubicación y plazas compartidas.
-- Perfil de usuario con alias y teléfono opcional.
-- Autenticación real con Convex Auth, registro, inicio de sesión, verificación OTP y recuperación de contraseña.
-- Paneles administrativos para usuarios, revisiones de productos y diagnóstico.
-- Exportación de datos y almacenamiento local para ajustes, historial y preferencias.
+- Listas de compra con cantidades, precios, promociones, totales e histórico.
+- Escaneo EAN, edición de productos, historial y caché.
+- Clasificación de productos de supermercado, libros y música, con campos e imágenes adecuados a cada tipo.
+- Tiendas favoritas, ubicación, distancia y mapas.
+- Chat por salas con moderación y caducidad de mensajes.
+- Parking colaborativo mediante destinos, estados y plazas compartidas.
+- Perfil, autenticación con Convex Auth y administración protegida por roles.
+- Exportación de datos y preferencias locales.
 
-## Funciones que no deben documentarse como activas
+> “Música” es un tipo de producto catalogable. La antigua sección de álbumes y reproductor musical ya no forma parte de la aplicación.
 
-La aplicación actual no contiene una funcionalidad de álbumes/reproductor musical ni una integración operativa de Google Drive. Los documentos históricos sobre Heroku, PostgreSQL, Socket.IO, música o Google Drive deben conservarse únicamente como archivo histórico, no como instrucciones de instalación.
+## Tecnología
+
+- Cliente: Expo + React Native, con una base de código común.
+- Backend: Convex para autenticación, datos compartidos y funciones del servidor.
+- Web/PWA: exportación web y despliegue habitual en Netlify.
+- Datos locales: capa `src/storage` para preferencias, caché y datos que no necesitan sincronización.
+
+Heroku, PostgreSQL externo, Socket.IO y Google Drive pertenecen a etapas anteriores y no forman parte de la arquitectura actual.
 
 ## Inicio rápido
 
 ```bash
 npm install
+npx convex dev
 npx expo start
 ```
 
-Para limpiar la caché:
+El cliente necesita esta variable:
 
 ```bash
-npx expo start -c
+EXPO_PUBLIC_CONVEX_URL=https://tu-deployment.convex.cloud
 ```
 
-La configuración mínima requiere `EXPO_PUBLIC_CONVEX_URL`; el resto de variables depende del despliegue y de los servicios de autenticación/correo configurados en Convex.
+No guardes secretos en variables `EXPO_PUBLIC_*`. La configuración privada de autenticación y correo debe residir en Convex.
 
-Consulta [ARCHITECTURE.md](ARCHITECTURE.md), [CONFIGURATION.md](CONFIGURATION.md), [FEATURES.md](FEATURES.md), [FILE_CATALOG.md](FILE_CATALOG.md) y [CLEANUP_AUDIT.md](CLEANUP_AUDIT.md).
+Comandos habituales:
+
+```bash
+npx expo start -c       # limpiar caché
+npx expo start --web   # ejecutar Web
+npm run build          # generar la versión Web/PWA
+```
+
+## Documentación
+
+- [TECHNICAL.md](TECHNICAL.md): arquitectura, carpetas, datos y despliegue.
+- [MAINTENANCE.md](MAINTENANCE.md): administración, diálogos, limpieza y documentación histórica.
+
