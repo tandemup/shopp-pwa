@@ -642,27 +642,30 @@ export default function MenuScreen({ navigation }) {
   const cameraPermission =
     Platform.OS === "web" ? webCameraPermission : nativeCameraPermission;
 
-  useEffect(() => {
-    let mounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
 
-    async function loadWebCameraPermission() {
-      if (Platform.OS !== "web") {
-        return;
+      async function refreshWebCameraPermission() {
+        if (Platform.OS !== "web") return;
+
+        const result = await getWebCameraPermissionStatus();
+
+        if (active) {
+          setWebCameraPermission(result);
+        }
       }
 
-      const result = await getWebCameraPermissionStatus();
+      refreshWebCameraPermission();
 
-      if (mounted) {
-        setWebCameraPermission(result);
-      }
-    }
-
-    loadWebCameraPermission();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      // Safari/PWA puede cambiar el permiso mientras Settings no está activa.
+      // Al recuperar el foco volvemos a consultar al navegador y evitamos
+      // mostrar un estado antiguo como "No solicitado".
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     navigation.setOptions(headerConfig.navigationOptions);

@@ -107,37 +107,6 @@ function navigateToAvailableRoute(navigation, routeName, params) {
   }
 }
 
-async function requestWebCameraAccess() {
-  if (
-    typeof navigator === "undefined" ||
-    !navigator.mediaDevices?.getUserMedia
-  ) {
-    return { ok: false, blocked: true, reason: "unsupported" };
-  }
-
-  let stream = null;
-
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false,
-    });
-
-    return { ok: true, blocked: false, reason: null };
-  } catch (error) {
-    const blocked =
-      error?.name === "NotAllowedError" || error?.name === "SecurityError";
-
-    return {
-      ok: false,
-      blocked,
-      reason: error?.name || "camera-error",
-    };
-  } finally {
-    stream?.getTracks?.().forEach((track) => track.stop());
-  }
-}
-
 export default function NewProductScannerScreen2() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -193,10 +162,6 @@ export default function NewProductScannerScreen2() {
   const [torchEnabled, setTorchEnabled] = useState(safeInitialTorchEnabled);
 
   const [scannerSession, setScannerSession] = useState(0);
-
-  const [webCameraState, setWebCameraState] = useState(
-    Platform.OS === "web" ? "checking" : "ready",
-  );
 
   const isQuickEan13Input = captureMode === "ean13-input";
   const isManualBarcodeInput = __DEV__ && captureMode === "manual-barcode";
@@ -293,32 +258,6 @@ export default function NewProductScannerScreen2() {
 
   function handleToggleTorch() {
     setTorchEnabled((previous) => !previous);
-  }
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || isManualBarcodeInput) return;
-
-    let active = true;
-
-    async function prepareWebCamera() {
-      setWebCameraState("checking");
-      const result = await requestWebCameraAccess();
-
-      if (!active) return;
-      setWebCameraState(result.ok ? "ready" : result.blocked ? "blocked" : "error");
-    }
-
-    prepareWebCamera();
-
-    return () => {
-      active = false;
-    };
-  }, [scannerSession, isManualBarcodeInput]);
-
-  async function retryWebCamera() {
-    setWebCameraState("checking");
-    const result = await requestWebCameraAccess();
-    setWebCameraState(result.ok ? "ready" : result.blocked ? "blocked" : "error");
   }
 
   useEffect(() => {
@@ -637,51 +576,6 @@ export default function NewProductScannerScreen2() {
   }
 
   if (Platform.OS === "web") {
-    if (webCameraState !== "ready") {
-      const blocked = webCameraState === "blocked";
-      const checking = webCameraState === "checking";
-
-      return (
-        <SafeAreaView style={styles.webPermissionContainer}>
-          <StatusBar style="light" backgroundColor="#07111F" translucent={false} />
-          <View style={styles.center}>
-            {checking ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Ionicons name="warning-outline" size={52} color="#FBBF24" />
-            )}
-
-            <Text style={styles.webPermissionTitle}>
-              {checking
-                ? "Comprobando la cámara..."
-                : blocked
-                  ? "No se pudo abrir la cámara"
-                  : "Cámara no disponible"}
-            </Text>
-
-            {!checking ? (
-              <Text style={styles.webPermissionMessage}>
-                {blocked
-                  ? "El navegador ha bloqueado la cámara. Activa el permiso de cámara para este sitio y vuelve a intentarlo."
-                  : "No ha sido posible acceder a la cámara de este dispositivo."}
-              </Text>
-            ) : null}
-
-            {!checking ? (
-              <>
-                <Pressable style={styles.webRetryBtn} onPress={retryWebCamera}>
-                  <Text style={styles.webRetryText}>Reintentar</Text>
-                </Pressable>
-                <Pressable style={styles.webCancelBtn} onPress={handleCancel}>
-                  <Text style={styles.webCancelText}>Cancelar</Text>
-                </Pressable>
-              </>
-            ) : null}
-          </View>
-        </SafeAreaView>
-      );
-    }
-
     return (
       <View style={styles.screen}>
         <StatusBar
@@ -842,60 +736,6 @@ const styles = StyleSheet.create({
     flex: 1,
 
     backgroundColor: "#000000",
-  },
-
-  webPermissionContainer: {
-    flex: 1,
-    backgroundColor: "#07111F",
-  },
-
-  webPermissionTitle: {
-    marginTop: 24,
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-
-  webPermissionMessage: {
-    marginTop: 14,
-    maxWidth: 520,
-    color: "#CBD5E1",
-    fontSize: 17,
-    lineHeight: 25,
-    textAlign: "center",
-  },
-
-  webRetryBtn: {
-    width: "100%",
-    maxWidth: 420,
-    marginTop: 28,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    backgroundColor: "#239B63",
-  },
-
-  webRetryText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-
-  webCancelBtn: {
-    width: "100%",
-    maxWidth: 420,
-    marginTop: 12,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    backgroundColor: "#293444",
-  },
-
-  webCancelText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
   },
 
   permissionContainer: {
