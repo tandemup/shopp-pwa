@@ -23,6 +23,11 @@ import { ROUTES } from "@/src/navigation/ROUTES";
 import { useProductLookupWithCache } from "@/src/hooks/useProductLookupWithCache";
 import { normalizeBarcode } from "@/src/utils/barcodeNormalization";
 import {
+  buildBookLookupPrompt,
+  buildMusicCdLookupPrompt,
+  buildSupermarketLookupPrompt,
+} from "@/src/utils/productLookupPrompts";
+import {
   getProductBrand,
   getProductCategory,
   getProductDisplayName,
@@ -32,6 +37,32 @@ import {
 
 const PASTED_IMAGE_MAX_SIZE = 256;
 const PASTED_IMAGE_QUALITY = 0.86;
+
+function normalizeProductType(value) {
+  return String(value || "Supermercado")
+    .trim()
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildLookupPrompt(productType, barcode) {
+  const normalizedProductType = normalizeProductType(productType);
+
+  if (normalizedProductType === "libro" || normalizedProductType === "libros") {
+    return buildBookLookupPrompt(barcode);
+  }
+
+  if (
+    normalizedProductType === "musica" ||
+    normalizedProductType === "music" ||
+    normalizedProductType === "cd"
+  ) {
+    return buildMusicCdLookupPrompt(barcode);
+  }
+
+  return buildSupermarketLookupPrompt(barcode);
+}
 
 function loadImageFromBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -140,6 +171,17 @@ export default function ProductInfoScreen({ route, navigation }) {
 
   const category = useMemo(() => getProductCategory(product), [product]);
 
+  const productType =
+    params.productType ||
+    initialProduct?.productType ||
+    product?.productType ||
+    "Supermercado";
+
+  const googleModeAiPrompt = useMemo(
+    () => buildLookupPrompt(productType, barcode),
+    [productType, barcode],
+  );
+
   const productUrl = useMemo(
     () => getProductUrl(product, barcode),
     [product, barcode],
@@ -222,6 +264,25 @@ export default function ProductInfoScreen({ route, navigation }) {
       setLocalError(err?.message || "No se pudo abrir la búsqueda de Google.");
     }
   }, [barcode]);
+
+  const handleGoogleModeAiSearch = useCallback(async () => {
+    if (!barcode) {
+      setLocalError("No se ha recibido ningún código de barras.");
+      return;
+    }
+
+    try {
+      setLocalError(null);
+      const url = `https://www.google.com/search?udm=50&q=${encodeURIComponent(
+        googleModeAiPrompt,
+      )}`;
+      await Linking.openURL(url);
+    } catch (err) {
+      setLocalError(
+        err?.message || "No se pudo abrir Google Modo IA con el prompt.",
+      );
+    }
+  }, [barcode, googleModeAiPrompt]);
 
   const handleGoogleShoppingSearch = useCallback(async () => {
     if (!barcode) {
@@ -419,6 +480,18 @@ export default function ProductInfoScreen({ route, navigation }) {
             onPress={handleEdit}
           >
             <Text style={styles.primaryButtonText}>Editar producto</Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.secondaryButton,
+              isWideScreen && styles.actionsWideButton,
+            ]}
+            onPress={handleGoogleModeAiSearch}
+          >
+            <Text style={styles.secondaryButtonText}>
+              Buscar con Google Modo IA
+            </Text>
           </Pressable>
 
           <Pressable
