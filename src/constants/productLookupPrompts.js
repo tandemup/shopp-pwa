@@ -107,9 +107,15 @@ export function buildBookLookupPrompt(barcode) {
 
   return `Busca información bibliográfica fiable sobre el libro con ISBN-13 ${normalizedBarcode}.
 
-Comprueba el dígito de control e identifica exactamente la edición asociada al ISBN. No mezcles editoriales, idiomas, encuadernaciones, reimpresiones ni ediciones. Contrasta los datos en al menos dos fuentes fiables, priorizando editorial, Agencia ISBN o biblioteca nacional, WorldCat, Google Books y Open Library.
+Comprueba el dígito de control e identifica exactamente la edición asociada al ISBN. No mezcles editoriales, idiomas, encuadernaciones, reimpresiones ni ediciones. Contrasta los datos en al menos dos fuentes fiables, priorizando Open Library, la editorial, Agencia ISBN o biblioteca nacional, WorldCat y Google Books.
 
-Busca también la imagen de la cubierta frontal exacta de ese ISBN. Prioriza la editorial, Google Books y Open Library. No uses la cubierta de otra edición aunque tenga el mismo título y autor.
+Consulta específicamente estos recursos de Open Library:
+- Ficha por ISBN: https://openlibrary.org/isbn/${normalizedBarcode}
+- API bibliográfica: https://openlibrary.org/api/books?bibkeys=ISBN:${normalizedBarcode}&jscmd=data&format=json
+- Covers API, cubierta grande: https://covers.openlibrary.org/b/isbn/${normalizedBarcode}-L.jpg?default=false
+- Si necesitas comprobar otras resoluciones, sustituye -L por -M o -S, manteniendo ?default=false.
+
+Busca también la imagen de la cubierta frontal exacta de ese ISBN. Comprueba primero la Covers API de Open Library y después la editorial y Google Books. No uses la cubierta de otra edición aunque tenga el mismo título y autor. La portada debe corresponder al ISBN exacto y no puede ser una imagen genérica de "sin portada".
 
 Devuelve exclusivamente un único bloque de código JSON, sin texto antes ni después, con esta estructura:
 {
@@ -127,6 +133,8 @@ Devuelve exclusivamente un único bloque de código JSON, sin texto antes ni des
   "synopsis": null,
   "coverImageUrl": null,
   "productPageUrl": null,
+  "openLibraryUrl": "https://openlibrary.org/isbn/${normalizedBarcode}",
+  "sourceUrls": [],
   "verificationStatus": "unverified",
   "verificationNotes": null
 }
@@ -136,9 +144,14 @@ Reglas:
 - publicationYear y pageCount son números o null.
 - synopsis debe tener un máximo de 500 caracteres.
 - coverImageUrl solo puede contener una URL HTTPS directa y pública de la cubierta frontal correspondiente exactamente a este ISBN.
+- Si Open Library dispone de la cubierta, usa preferentemente https://covers.openlibrary.org/b/isbn/${normalizedBarcode}-L.jpg?default=false como coverImageUrl.
+- Antes de usar esa URL, verifica que devuelve una imagen real. Con default=false, una respuesta 404 significa que Open Library no tiene portada para ese ISBN; en ese caso busca en la editorial o Google Books.
+- No uses como portada una imagen de sustitución, un icono ni una cubierta localizada solo por título o autor.
 - Una ficha de librería o página HTML no es una imagen. Si no encuentras una imagen directa verificable, devuelve null.
 - No uses resultados de búsqueda, imágenes incrustadas como data: ni URL temporales.
 - productPageUrl puede contener la página concreta de esta edición.
+- openLibraryUrl debe conservar la ficha exacta por ISBN y sourceUrls debe incluir únicamente las fuentes realmente consultadas.
+- sourceUrls es un array de strings.
 - Las URL deben ser texto plano, sin Markdown, espacios ni saltos de línea.
 - No inventes datos; usa null cuando no puedas verificarlos.
 - verificationStatus solo puede ser verified, partially_verified o unverified.

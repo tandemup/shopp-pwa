@@ -27,12 +27,6 @@ import {
 import { SEARCH_ENGINES } from "@/src/constants/searchEngines";
 import { buildHeaderConfig } from "@/src/utils/layout/headerStyles";
 
-const PRODUCT_TYPES = [
-  { id: "Supermercado", label: "Supermercado", icon: "cart-outline" },
-  { id: "Libros", label: "Libros", icon: "book-outline" },
-  { id: "Música", label: "Música", icon: "musical-notes-outline" },
-];
-
 function buildProductSearchEngineSubtitle(settings) {
   const engineId =
     settings?.selectedProductEngine ||
@@ -72,7 +66,6 @@ export default function ScannerTabScreen({ navigation }) {
   );
   const [manualBarcode, setManualBarcode] = useState("");
   const [manualBarcodeError, setManualBarcodeError] = useState("");
-  const [productType, setProductType] = useState("Supermercado");
   const [productSearchEngineSubtitle, setProductSearchEngineSubtitle] =
     useState("Motor activo: Google");
 
@@ -145,7 +138,6 @@ export default function ScannerTabScreen({ navigation }) {
     navigation.navigate(ROUTES.NEW_PRODUCT_SCANNER2, {
       saveToHistory: true,
       barcodeTypes: enabledBarcodeTypes,
-      productType,
     });
   };
 
@@ -183,7 +175,6 @@ export default function ScannerTabScreen({ navigation }) {
       manualBarcode: barcode,
       saveToHistory: true,
       barcodeTypes: enabledBarcodeTypes,
-      productType,
     });
   };
 
@@ -207,44 +198,6 @@ export default function ScannerTabScreen({ navigation }) {
             Escanea nuevos productos o consulta el historial de códigos
             escaneados.
           </Text>
-
-          <View style={styles.productTypeSection}>
-            <Text style={styles.productTypeLabel}>Tipo de producto</Text>
-            <View style={styles.productTypeOptions}>
-              {PRODUCT_TYPES.map((option) => {
-                const selected = productType === option.id;
-
-                return (
-                  <Pressable
-                    key={option.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Tipo de producto: ${option.label}`}
-                    onPress={() => setProductType(option.id)}
-                    style={({ pressed }) => [
-                      styles.productTypeButton,
-                      selected && styles.productTypeButtonSelected,
-                      pressed && styles.productTypeButtonPressed,
-                    ]}
-                  >
-                    <Ionicons
-                      name={option.icon}
-                      size={20}
-                      color={selected ? "#FFFFFF" : "#475569"}
-                    />
-                    <Text
-                      style={[
-                        styles.productTypeButtonText,
-                        selected && styles.productTypeButtonTextSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -484,57 +437,6 @@ const styles = StyleSheet.create({
 
   actions: {
     gap: 12,
-  },
-
-  productTypeSection: {
-    marginBottom: 16,
-  },
-
-  productTypeLabel: {
-    marginBottom: 8,
-    color: TEXT_PRIMARY,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-
-  productTypeOptions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  productTypeButton: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 64,
-    paddingHorizontal: 6,
-    paddingVertical: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-  },
-
-  productTypeButtonSelected: {
-    borderColor: "#2563EB",
-    backgroundColor: "#2563EB",
-  },
-
-  productTypeButtonPressed: {
-    opacity: 0.78,
-  },
-
-  productTypeButtonText: {
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  productTypeButtonTextSelected: {
-    color: "#FFFFFF",
   },
 
   sectionHeader: {
