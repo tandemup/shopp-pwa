@@ -690,16 +690,18 @@ export default function ShoppingListsScreen() {
             },
           ]}
         >
-          <FlatList
-            data={sortedActiveLists}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={renderListItem}
-            ListHeaderComponent={listHeader}
-            ListEmptyComponent={emptyState}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
+          <View style={styles.listWrapper}>
+            <FlatList
+              data={sortedActiveLists}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderListItem}
+              ListHeaderComponent={listHeader}
+              ListEmptyComponent={emptyState}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          </View>
         </View>
 
         <Modal
@@ -795,13 +797,13 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
+  listWrapper: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+
   listContent: {
     flexGrow: 1,
-    // Do not force the content container to 100% when it also has horizontal
-    // padding. On React Native Web that combination can make list rows paint
-    // over the padding after FlatList switches from the empty state to rows.
-    alignSelf: "stretch",
-    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 120,
   },
