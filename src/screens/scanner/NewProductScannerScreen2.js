@@ -156,40 +156,30 @@ function normalizeProductType(value, fallback = "Supermercado") {
 }
 
 function ProductTypeSelector({ value, onChange }) {
-  return (
-    <View style={styles.productTypeSelector}>
-      {PRODUCT_TYPE_OPTIONS.map((option) => {
-        const selected = value === option.value;
+  const currentIndex = Math.max(
+    0,
+    PRODUCT_TYPE_OPTIONS.findIndex((option) => option.value === value),
+  );
+  const currentOption = PRODUCT_TYPE_OPTIONS[currentIndex];
+  const nextOption =
+    PRODUCT_TYPE_OPTIONS[(currentIndex + 1) % PRODUCT_TYPE_OPTIONS.length];
 
-        return (
-          <Pressable
-            key={option.value}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected }}
-            accessibilityLabel={`Tipo de producto: ${option.label}`}
-            style={({ pressed }) => [
-              styles.productTypeOption,
-              selected && styles.productTypeOptionSelected,
-              pressed && styles.productTypeOptionPressed,
-            ]}
-            onPress={() => onChange(option.value)}
-          >
-            <Ionicons
-              name={option.icon}
-              size={18}
-              color={selected ? "#FFFFFF" : "#CBD5E1"}
-            />
-            <Text
-              style={[
-                styles.productTypeOptionText,
-                selected && styles.productTypeOptionTextSelected,
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+  return (
+    <View style={styles.productTypeSelector} pointerEvents="box-none">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Tipo de producto: ${currentOption.label}. Pulsar para cambiar a ${nextOption.label}`}
+        accessibilityHint="Cambia al siguiente tipo de producto"
+        style={({ pressed }) => [
+          styles.productTypeOption,
+          pressed && styles.productTypeOptionPressed,
+        ]}
+        onPress={() => onChange(nextOption.value)}
+      >
+        <Ionicons name={currentOption.icon} size={20} color="#FFFFFF" />
+        <Text style={styles.productTypeOptionText}>{currentOption.label}</Text>
+        <Ionicons name="chevron-forward" size={17} color="#DBEAFE" />
+      </Pressable>
     </View>
   );
 }
@@ -1094,22 +1084,15 @@ const styles = StyleSheet.create({
   productTypeSelector: {
     position: "absolute",
     top: 16,
-    left: 14,
-    right: 14,
+    left: 0,
+    right: 0,
     zIndex: 30,
 
-    flexDirection: "row",
-    gap: 6,
-
-    padding: 5,
-    borderRadius: 16,
-
-    backgroundColor: "rgba(15, 23, 42, 0.84)",
+    alignItems: "center",
   },
 
   productTypeOption: {
-    flex: 1,
-
+    minWidth: 190,
     minHeight: 44,
 
     flexDirection: "row",
@@ -1117,13 +1100,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
 
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingVertical: 9,
 
-    borderRadius: 12,
-  },
-
-  productTypeOptionSelected: {
+    borderRadius: 14,
     backgroundColor: "#2563EB",
   },
 
@@ -1132,14 +1112,10 @@ const styles = StyleSheet.create({
   },
 
   productTypeOptionText: {
-    color: "#CBD5E1",
-
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  productTypeOptionTextSelected: {
     color: "#FFFFFF",
+
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   permissionContainer: {
