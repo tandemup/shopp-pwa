@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
@@ -14,7 +14,6 @@ import {
 
 import {
   SEARCH_ENGINES,
-  BOOK_ENGINES,
   PRODUCT_SEARCH_ENGINE_IDS,
 } from "@/src/constants/searchEngines";
 import { buildHeaderConfig } from "@/src/utils/layout/headerStyles";
@@ -25,13 +24,6 @@ const CATEGORY_CONFIG = {
     selectedKey: "selectedProductEngine",
     legacyKey: "generalEngine",
     legacyMapKey: "productEngines",
-  },
-
-  book: {
-    engines: BOOK_ENGINES,
-    selectedKey: "selectedBookEngine",
-    legacyKey: "bookEngine",
-    legacyMapKey: "bookEngines",
   },
 };
 
@@ -44,38 +36,17 @@ function buildSingleSelectionMap(engines, selectedId) {
 
 export default function SearchEngines() {
   const navigation = useNavigation();
-  const route = useRoute();
-
-  const type = route.params?.type ?? "all";
-
   const [settings, setSettings] = useState(DEFAULT_SEARCH_SETTINGS);
   const [isReady, setIsReady] = useState(false);
 
-  const showProducts = type === "product" || type === "all";
-  const showBooks = type === "book" || type === "all";
-
-  const screenCopy = useMemo(() => {
-    if (type === "product") {
-      return {
-        title: "Motores de productos",
-        subtitle:
-          "Elige el motor que se usará al buscar productos o códigos de barras.",
-      };
-    }
-
-    if (type === "book") {
-      return {
-        title: "Motores de libros",
-        subtitle: "Elige el motor que se usará al buscar libros.",
-      };
-    }
-
-    return {
-      title: "Motor de búsqueda",
+  const screenCopy = useMemo(
+    () => ({
+      title: "Motores de productos",
       subtitle:
-        "Elige los motores predeterminados para productos, códigos de barras y libros.",
-    };
-  }, [type]);
+        "Elige el motor que se usará al buscar productos o códigos de barras.",
+    }),
+    [],
+  );
 
   const headerConfig = useMemo(
     () =>
@@ -191,35 +162,18 @@ export default function SearchEngines() {
       >
         <Text style={styles.subtitle}>{screenCopy.subtitle}</Text>
 
-        {showProducts ? (
-          <>
-            <Text style={styles.sectionTitle}>Productos</Text>
+        <Text style={styles.sectionTitle}>Productos</Text>
 
-            {PRODUCT_SEARCH_ENGINE_IDS.map((engineId) => {
-              const engine = SEARCH_ENGINES[engineId];
+        {PRODUCT_SEARCH_ENGINE_IDS.map((engineId) => {
+          const engine = SEARCH_ENGINES[engineId];
 
-              if (!engine) return null;
+          if (!engine) return null;
 
-              return renderEngineRow({
-                category: "product",
-                engine,
-              });
-            })}
-          </>
-        ) : null}
-
-        {showBooks ? (
-          <>
-            <Text style={styles.sectionTitle}>Libros</Text>
-
-            {Object.values(BOOK_ENGINES).map((engine) =>
-              renderEngineRow({
-                category: "book",
-                engine,
-              }),
-            )}
-          </>
-        ) : null}
+          return renderEngineRow({
+            category: "product",
+            engine,
+          });
+        })}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>

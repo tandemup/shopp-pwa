@@ -157,10 +157,6 @@ export default function ScannerTabScreen({ navigation }) {
     navigation.navigate(ROUTES.SEARCH_ENGINES, { type: "product" });
   };
 
-  const goToBookSearchEngines = () => {
-    navigation.navigate(ROUTES.SEARCH_ENGINES, { type: "book" });
-  };
-
   const handleManualBarcodeChange = (value) => {
     setManualBarcode(
       String(value || "")
@@ -346,27 +342,6 @@ export default function ScannerTabScreen({ navigation }) {
                 <Text style={styles.cardTitle}>Buscador de productos</Text>
                 <Text style={styles.cardSubtitle}>
                   {productSearchEngineSubtitle}
-                </Text>
-              </View>
-
-              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                pressed && styles.cardPressed,
-              ]}
-              onPress={goToBookSearchEngines}
-            >
-              <View style={styles.iconBox}>
-                <Ionicons name="book-outline" size={26} color="#111827" />
-              </View>
-
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>Buscador de libros</Text>
-                <Text style={styles.cardSubtitle}>
-                  Google Books, Open Library...
                 </Text>
               </View>
 

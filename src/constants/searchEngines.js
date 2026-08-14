@@ -107,40 +107,7 @@ export const PRODUCT_SEARCH_ENGINE_IDS = [
   "barcodelookup",
 ];
 
-export const BOOK_ENGINES = {
-  google_books: {
-    id: "google_books",
-    label: "Google Books",
-    family: "Ionicons",
-    icon: "book-outline",
-    buildUrl: (query) => {
-      return `https://www.google.com/search?tbm=bks&q=${encodeQuery(query)}`;
-    },
-  },
-
-  open_library: {
-    id: "open_library",
-    label: "Open Library",
-    family: "Ionicons",
-    icon: "library-outline",
-    buildUrl: (query) => {
-      return `https://openlibrary.org/search?q=${encodeQuery(query)}`;
-    },
-  },
-
-  amazon_books: {
-    id: "amazon_books",
-    label: "Amazon Books",
-    family: "Ionicons",
-    icon: "cart-outline",
-    buildUrl: (query) => {
-      return `https://www.amazon.com/s?k=${encodeQuery(query)}&i=stripbooks`;
-    },
-  },
-};
-
 export const DEFAULT_ENGINE = "google_ai";
-export const DEFAULT_BOOK_ENGINE = "google_books";
 
 export const PRODUCT_EXTERNAL_ACTION_IDS = [
   "google_ai",

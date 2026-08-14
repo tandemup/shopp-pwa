@@ -4,7 +4,6 @@ export const STORAGE_KEYS = {
   SEARCH_SETTINGS: "@shopping/searchSettings",
   SEARCH_ENGINE: "@shopping/searchEngine",
   SEARCH_GENERAL_ENGINE: "@shopping/search-general-engine",
-  SEARCH_BOOK_ENGINE: "@shopping/search-book-engine",
 
   HISTORY: "@shopping/history",
   FAVORITES: "@shopping/favorites",

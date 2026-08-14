@@ -7,12 +7,6 @@ import {
 } from "@/src/storage/settingsStorage";
 
 const DEFAULT_SETTINGS = {
-  bookEngines: {
-    googleBooks: true,
-    openLibrary: true,
-    amazonBooks: false,
-    goodreads: false,
-  },
   productEngines: {
     googleShopping: true,
     amazon: false,
@@ -75,19 +69,6 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Configuración</Text>
-
-      {/* 📚 Libros */}
-      <Text style={styles.sectionTitle}>Motores de búsqueda para libros</Text>
-
-      {Object.entries(settings.bookEngines).map(([key, value]) => (
-        <View style={styles.row} key={key}>
-          <Text style={styles.label}>{formatEngineName(key)}</Text>
-          <Switch
-            value={value}
-            onValueChange={() => toggleEngine("bookEngines", key)}
-          />
-        </View>
-      ))}
 
       {/* 🛒 Productos */}
       <Text style={styles.sectionTitle}>

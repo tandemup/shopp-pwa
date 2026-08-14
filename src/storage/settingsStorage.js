@@ -3,8 +3,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
-  BOOK_ENGINES,
-  DEFAULT_BOOK_ENGINE,
   DEFAULT_ENGINE,
   PRODUCT_SEARCH_ENGINE_IDS,
   SEARCH_ENGINES,
@@ -17,16 +15,8 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function getBookEngineIds() {
-  return Object.keys(BOOK_ENGINES || {});
-}
-
 function isValidProductEngineId(engineId) {
   return Boolean(engineId && SEARCH_ENGINES?.[engineId]);
-}
-
-function isValidBookEngineId(engineId) {
-  return Boolean(engineId && BOOK_ENGINES?.[engineId]);
 }
 
 function buildEnabledMap(ids, defaultId, source = {}) {
@@ -42,13 +32,11 @@ function buildEnabledMap(ids, defaultId, source = {}) {
 
 export const DEFAULT_SEARCH_SETTINGS = {
   selectedProductEngine: DEFAULT_ENGINE,
-  selectedBookEngine: DEFAULT_BOOK_ENGINE,
 
   // Campo legacy conservado para pantallas antiguas que todavía lo leen.
   generalEngine: DEFAULT_ENGINE,
 
   productEngines: buildEnabledMap(PRODUCT_SEARCH_ENGINE_IDS, DEFAULT_ENGINE),
-  bookEngines: buildEnabledMap(getBookEngineIds(), DEFAULT_BOOK_ENGINE),
 };
 
 function safeJsonParse(value) {
@@ -73,28 +61,16 @@ export function normalizeSearchSettings(settings = {}) {
       ? settings.generalEngine
       : DEFAULT_SEARCH_SETTINGS.selectedProductEngine;
 
-  const selectedBookEngine = isValidBookEngineId(settings?.selectedBookEngine)
-    ? settings.selectedBookEngine
-    : DEFAULT_SEARCH_SETTINGS.selectedBookEngine;
-
   return {
     ...DEFAULT_SEARCH_SETTINGS,
-    ...settings,
 
     selectedProductEngine,
-    selectedBookEngine,
     generalEngine: selectedProductEngine,
 
     productEngines: buildEnabledMap(
       PRODUCT_SEARCH_ENGINE_IDS,
       selectedProductEngine,
       settings?.productEngines,
-    ),
-
-    bookEngines: buildEnabledMap(
-      getBookEngineIds(),
-      selectedBookEngine,
-      settings?.bookEngines,
     ),
   };
 }
@@ -174,22 +150,6 @@ export async function setSelectedProductEngine(engineId) {
       PRODUCT_SEARCH_ENGINE_IDS,
       safeEngineId,
       currentSettings?.productEngines,
-    ),
-  }));
-}
-
-export async function setSelectedBookEngine(engineId) {
-  const safeEngineId = isValidBookEngineId(engineId)
-    ? engineId
-    : DEFAULT_BOOK_ENGINE;
-
-  return updateSearchSettings((currentSettings) => ({
-    ...currentSettings,
-    selectedBookEngine: safeEngineId,
-    bookEngines: buildEnabledMap(
-      getBookEngineIds(),
-      safeEngineId,
-      currentSettings?.bookEngines,
     ),
   }));
 }
