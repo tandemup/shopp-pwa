@@ -30,6 +30,10 @@ import {
   openSearchEngine,
 } from "@/src/constants/searchEngines";
 import { getSearchSettings } from "@/src/storage/settingsStorage";
+import {
+  getProductImages,
+  saveProductImageBlobs,
+} from "@/src/storage/productImageStorage";
 
 import {
   getProductBrand,
@@ -566,9 +570,9 @@ function GoogleModeIA({
       ? "Buscar ficha de libro (JSON)"
       : "Google Modo IA";
   const jsonSearchDescription = musicJsonSearch
-    ? "Identifica la edición e incluye la URL de la carátula"
+    ? "Identifica la edición y devuelve sus datos"
     : bookJsonSearch
-      ? "Identifica la edición e incluye la URL de la cubierta"
+      ? "Identifica la edición y devuelve los datos bibliográficos"
       : "Respuesta generada a partir del código";
 
   return (
@@ -867,6 +871,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [musicJson, setMusicJson] = useState("");
   const [bookJson, setBookJson] = useState("");
   const [pastingImage, setPastingImage] = useState(false);
+  const [selectingImage, setSelectingImage] = useState(false);
+  const [localImageUri, setLocalImageUri] = useState("");
   const [clipboardImageAvailable, setClipboardImageAvailable] = useState(false);
   const [imageSizeBytes, setImageSizeBytes] = useState(null);
   const [thumbnailSizeBytes, setThumbnailSizeBytes] = useState(null);
@@ -877,16 +883,131 @@ export default function EditScannedItemScreen({ route, navigation }) {
     consultingInternet ||
     internetLookupLoading ||
     saving ||
+    selectingImage ||
     deleting ||
     deletingFromDatabase;
 
   const visibleError = localError || lookupError;
-  const displayedImageUri = pastedImageUri || imageUrl;
+  const displayedImageUri = localImageUri || pastedImageUri || imageUrl;
 
   useEffect(() => {
     setImageSizeBytes(getDataUrlSizeBytes(pastedImageUri));
     setThumbnailSizeBytes(getDataUrlSizeBytes(thumbnailUri));
   }, [pastedImageUri, thumbnailUri]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !barcode || typeof window === "undefined") {
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = "";
+
+    getProductImages(barcode)
+      .then(({ detail, thumbnail }) => {
+        if (!active || !detail?.blob) return;
+        objectUrl = window.URL.createObjectURL(detail.blob);
+        setLocalImageUri(objectUrl);
+        setImageSizeBytes(detail.blob.size || detail.metadata?.size || null);
+        setThumbnailSizeBytes(
+          thumbnail?.blob?.size || thumbnail?.metadata?.size || null,
+        );
+      })
+      .catch((error) => {
+        console.warn("EditScannedItemScreen local image load error:", error);
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [barcode]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        Platform.OS === "web" &&
+        typeof window !== "undefined" &&
+        localImageUri?.startsWith("blob:")
+      ) {
+        window.URL.revokeObjectURL(localImageUri);
+      }
+    };
+  }, [localImageUri]);
+
+  const showLocalDetailBlob = useCallback((blob) => {
+    if (Platform.OS !== "web" || typeof window === "undefined" || !blob) return;
+
+    setLocalImageUri((currentUrl) => {
+      if (currentUrl?.startsWith("blob:")) {
+        window.URL.revokeObjectURL(currentUrl);
+      }
+      return window.URL.createObjectURL(blob);
+    });
+  }, []);
+
+  const persistLocalProductImage = useCallback(
+    async (sourceBlob, source = "gallery") => {
+      if (!barcode) {
+        throw new Error("No hay código de barras para asociar la imagen.");
+      }
+
+      const [thumbnailBlob, detailBlob] = await Promise.all([
+        convertImageBlobToJpeg(sourceBlob, PRODUCT_THUMBNAIL_MAX_SIZE),
+        convertImageBlobToJpeg(sourceBlob, PRODUCT_DETAIL_MAX_SIZE),
+      ]);
+
+      await saveProductImageBlobs(barcode, {
+        detailBlob,
+        thumbnailBlob,
+        source,
+      });
+
+      showLocalDetailBlob(detailBlob);
+      setImageSizeBytes(detailBlob.size);
+      setThumbnailSizeBytes(thumbnailBlob.size);
+      setPastedImageUri("");
+      setThumbnailUri("");
+
+      return { detailBlob, thumbnailBlob };
+    },
+    [barcode, showLocalDetailBlob],
+  );
+
+  const handleSelectProductImage = useCallback(async () => {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      setLocalError(
+        "La selección de imagen desde archivo está habilitada en la PWA web.",
+      );
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = false;
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      setSelectingImage(true);
+      setLocalError(null);
+      try {
+        await persistLocalProductImage(file, "gallery");
+      } catch (error) {
+        console.error("EditScannedItemScreen select image error:", error);
+        setLocalError(
+          error?.message || "No se pudo importar y guardar la imagen.",
+        );
+      } finally {
+        setSelectingImage(false);
+        input.remove();
+      }
+    };
+
+    input.click();
+  }, [persistLocalProductImage]);
 
   const readClipboardImage = useCallback(async () => {
     if (
@@ -974,23 +1095,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         if (!imageType) continue;
 
         const imageBlob = await clipboardItem.getType(imageType);
-        // Conservamos las dimensiones originales para el detalle, pero ambas
-        // versiones se convierten a JPEG y la miniatura se reduce a 64 px.
-        const thumbnailBlob = await convertImageBlobToJpeg(
-          imageBlob,
-          PRODUCT_THUMBNAIL_MAX_SIZE,
-        );
-        const detailBlob = await convertImageBlobToJpeg(
-          imageBlob,
-          ENABLE_PASTED_IMAGE_RESIZE ? PRODUCT_DETAIL_MAX_SIZE : null,
-        );
-        const [thumbnailDataUrl, detailDataUrl] = await Promise.all([
-          blobToDataUrl(thumbnailBlob),
-          blobToDataUrl(detailBlob),
-        ]);
-
-        setThumbnailUri(thumbnailDataUrl);
-        setPastedImageUri(detailDataUrl);
+        await persistLocalProductImage(imageBlob, "clipboard");
         setClipboardImageAvailable(false);
         return;
       }
@@ -1008,7 +1113,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
     } finally {
       setPastingImage(false);
     }
-  }, []);
+  }, [persistLocalProductImage]);
 
   useEffect(() => {
     let active = true;
@@ -1259,10 +1364,19 @@ export default function EditScannedItemScreen({ route, navigation }) {
     setLocalError(null);
 
     try {
-      // El formulario mantiene separados la URL y el contenido pegado. El
-      // backend conserva el campo histórico imageUrl hasta que el modelo de
-      // datos disponga de un campo binario propio.
+      // Las imágenes seleccionadas/pegadas localmente se guardan como Blob
+      // en IndexedDB (detalle 256 px + thumbnail 64 px). Cuando existe una
+      // imagen local, no enviamos imageUrl ni thumbnailUri a Convex.
+      // Conservamos estos campos únicamente para imágenes externas/legadas.
       const persistedImage = normalizeString(pastedImageUri || imageUrl);
+      const hasLocalIndexedDbImage = Boolean(localImageUri);
+      const convexImageFields = hasLocalIndexedDbImage
+        ? {}
+        : {
+            imageUrl: persistedImage || undefined,
+            thumbnailUri: normalizeString(thumbnailUri) || undefined,
+          };
+
       const normalizedDetails = Object.fromEntries(
         Object.entries(details || {})
           .map(([key, value]) => [key, normalizeString(value)])
@@ -1278,8 +1392,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
           productType: normalizeString(productType) || undefined,
           details: normalizedDetails,
           notes: normalizeString(notes) || undefined,
-          imageUrl: persistedImage || undefined,
-          thumbnailUri: normalizeString(thumbnailUri) || undefined,
+          ...convexImageFields,
           productUrl: normalizeString(productUrl) || undefined,
           source: "user_review",
           status: "pending_review",
@@ -1315,8 +1428,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
         productType: normalizeString(productType) || undefined,
         details: normalizedDetails,
         notes: normalizeString(notes) || undefined,
-        imageUrl: persistedImage || undefined,
-        thumbnailUri: normalizeString(thumbnailUri) || undefined,
+        ...convexImageFields,
         productUrl: normalizeString(productUrl) || undefined,
         source: "manual",
         status: "complete",
@@ -1367,6 +1479,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
     imageUrl,
     pastedImageUri,
     thumbnailUri,
+    localImageUri,
     productUrl,
     saveProductData,
     submitProductReview,
@@ -1673,6 +1786,44 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 productName={resolvedName}
               />
 
+              {isAdmin && Platform.OS === "web" ? (
+                <View style={styles.imageImportArea}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Importar imagen del producto"
+                    accessibilityState={{ disabled: selectingImage }}
+                    style={({ pressed }) => [
+                      styles.pasteImageButton,
+                      styles.imageImportButton,
+                      pressed && styles.pasteImageButtonPressed,
+                      selectingImage && styles.pasteImageButtonDisabled,
+                    ]}
+                    onPress={handleSelectProductImage}
+                    disabled={selectingImage}
+                  >
+                    {selectingImage ? (
+                      <ActivityIndicator size="small" color="#175CD3" />
+                    ) : (
+                      <Ionicons
+                        name="cloud-upload-outline"
+                        size={18}
+                        color="#175CD3"
+                      />
+                    )}
+                    <View style={styles.imageImportTextBlock}>
+                      <Text style={styles.pasteImageButtonText}>
+                        {selectingImage
+                          ? "Importando imagen..."
+                          : "Importar imagen"}
+                      </Text>
+                      <Text style={styles.imageImportHint}>
+                        Crea detalle.jpeg de 256 px y thumbnail.jpeg de 64 px
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : null}
+
               {formatKilobytes(imageSizeBytes) ||
               formatKilobytes(thumbnailSizeBytes) ? (
                 <View style={styles.imageSizeNotice}>
@@ -1682,11 +1833,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
                     color="#475467"
                   />
                   <Text style={styles.imageSizeNoticeText}>
-                    Detalle{" "}
-                    {ENABLE_PASTED_IMAGE_RESIZE
-                      ? `${PRODUCT_DETAIL_MAX_SIZE} px`
-                      : "original"}
-                    : {formatKilobytes(imageSizeBytes) || "—"}
+                    Detalle {PRODUCT_DETAIL_MAX_SIZE} px :{" "}
+                    {formatKilobytes(imageSizeBytes) || "—"}
                     {"  ·  "}
                     Miniatura {PRODUCT_THUMBNAIL_MAX_SIZE} px :{" "}
                     {formatKilobytes(thumbnailSizeBytes) || "—"}
@@ -2275,6 +2423,24 @@ const styles = StyleSheet.create({
 
   imageClipboardActions: {
     marginTop: 10,
+  },
+
+  imageImportArea: {
+    marginTop: 12,
+  },
+  imageImportButton: {
+    width: "100%",
+    justifyContent: "center",
+  },
+  imageImportTextBlock: {
+    flex: 1,
+  },
+  imageImportHint: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#667085",
+    fontWeight: "500",
   },
 
   imageSizeNotice: {

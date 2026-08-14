@@ -7,7 +7,11 @@ export const storage = {
   getJSON: async (key, fallback = null) => {
     const value = await webStorage.getItem(key);
     if (value == null) return fallback;
-    try { return typeof value === "string" ? JSON.parse(value) : value; } catch { return fallback; }
+    try {
+      return typeof value === "string" ? JSON.parse(value) : value;
+    } catch {
+      return fallback;
+    }
   },
   setJSON: (key, value) => webStorage.setItem(key, value),
   getAllKeys: () => webStorage.getAllKeys(),
@@ -19,9 +23,14 @@ export const storage = {
     return next;
   },
   async setFile(key, file, metadata = {}) {
-    const blob = file instanceof Blob ? file : new Blob([file], { type: metadata.mimeType });
+    const blob =
+      file instanceof Blob
+        ? file
+        : new Blob([file], { type: metadata.mimeType });
     return webStorage.setItem(key, { blob, metadata, updatedAt: Date.now() });
   },
-  async getFile(key) { return webStorage.getItem(key); },
+  async getFile(key) {
+    return webStorage.getItem(key);
+  },
   removeFile: (key) => webStorage.removeItem(key),
 };

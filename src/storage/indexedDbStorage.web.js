@@ -4,7 +4,9 @@ const STORE_NAME = "entries";
 
 function openDatabase() {
   if (typeof indexedDB === "undefined") {
-    return Promise.reject(new Error("IndexedDB no está disponible en este navegador"));
+    return Promise.reject(
+      new Error("IndexedDB no está disponible en este navegador"),
+    );
   }
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -20,13 +22,14 @@ function openDatabase() {
 }
 
 function transaction(mode, action) {
-  return openDatabase().then(
-    (database) =>
-      new Promise((resolve, reject) => {
-        const request = action(database.transaction(STORE_NAME, mode).objectStore(STORE_NAME));
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      }).finally(() => database.close()),
+  return openDatabase().then((database) =>
+    new Promise((resolve, reject) => {
+      const request = action(
+        database.transaction(STORE_NAME, mode).objectStore(STORE_NAME),
+      );
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }).finally(() => database.close()),
   );
 }
 
@@ -41,11 +44,16 @@ export const webStorage = {
     return transaction("readwrite", (store) => store.delete(key));
   },
   async getAllKeys() {
-    return (await transaction("readonly", (store) => store.getAllKeys())).map(String);
+    return (await transaction("readonly", (store) => store.getAllKeys())).map(
+      String,
+    );
   },
   async clearByPrefix(prefix) {
     const keys = await this.getAllKeys();
-    await Promise.all(keys.filter((key) => key.startsWith(prefix)).map((key) => this.removeItem(key)));
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => this.removeItem(key)),
+    );
   },
 };
-
