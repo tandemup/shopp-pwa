@@ -14,6 +14,7 @@ import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 import { safeQuestion } from "@/src/components/ui/alert/safeQuestion";
 
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
+import { getProductImages } from "@/src/storage/productImageStorage";
 import SearchBar from "@/src/components/features/search/SearchBar";
 
 const HISTORY_FILTERS = [
@@ -53,6 +54,65 @@ function getItemSecondaryText(item) {
   }
 
   return item.brand || details.manufacturer || "Supermercado";
+}
+
+function ProductThumbnail({ item }) {
+  const [localUri, setLocalUri] = useState("");
+  const fallbackUri = item?.thumbnailUri || item?.imageUrl || "";
+
+  useEffect(() => {
+    if (
+      !item?.barcode ||
+      typeof window === "undefined" ||
+      typeof window.URL?.createObjectURL !== "function"
+    ) {
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = "";
+
+    getProductImages(item.barcode)
+      .then(({ thumbnail }) => {
+        if (!active || !thumbnail?.blob) return;
+
+        objectUrl = window.URL.createObjectURL(thumbnail.blob);
+        setLocalUri(objectUrl);
+      })
+      .catch((error) => {
+        console.warn(
+          "ScannedHistoryScreen thumbnail IndexedDB load error:",
+          error,
+        );
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        window.URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [item?.barcode]);
+
+  const imageUri = localUri || fallbackUri;
+
+  if (!imageUri) {
+    return (
+      <View style={styles.imagePlaceholder}>
+        <Ionicons name="cube-outline" size={26} color="#9CA3AF" />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: imageUri }}
+      style={styles.image}
+      contentFit="cover"
+      cachePolicy={localUri ? "memory" : "disk"}
+      recyclingKey={`${item?.barcode || "scan"}:${imageUri}`}
+    />
+  );
 }
 
 export default function ScannedHistoryScreen({ navigation, route }) {
@@ -151,10 +211,6 @@ export default function ScannedHistoryScreen({ navigation, route }) {
     );
   };
 
-  const getItemImage = (item) => {
-    return item.thumbnailUri || item.imageUrl || null;
-  };
-
   const openItem = (item) => {
     navigation.navigate(ROUTES.EDIT_SCANNED_ITEM, {
       item,
@@ -164,7 +220,6 @@ export default function ScannedHistoryScreen({ navigation, route }) {
   };
 
   const renderItem = ({ item }) => {
-    const imageUri = getItemImage(item);
     const itemGroup = getItemGroup(item);
     const typeIcon =
       itemGroup === "books" ? "📚 " : itemGroup === "music" ? "💿 " : "";
@@ -180,18 +235,7 @@ export default function ScannedHistoryScreen({ navigation, route }) {
           onLongPress={() => handleDelete(item)}
         >
           <View style={styles.imageWrapper}>
-            {imageUri ? (
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.image}
-                contentFit="cover"
-                cachePolicy="disk"
-              />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="cube-outline" size={26} color="#9CA3AF" />
-              </View>
-            )}
+            <ProductThumbnail item={item} />
           </View>
 
           <View style={styles.infoContent}>
