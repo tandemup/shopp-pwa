@@ -44,6 +44,7 @@ import { safeAlert, safeMenu } from "@/src/components/ui/alert/safeAlert";
 import { useProductLookupWithCache } from "@/src/hooks/useProductLookupWithCache";
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import { normalizeBarcode } from "@/src/utils/barcodeNormalization";
+import { storage } from "@/src/storage";
 import {
   DEFAULT_SCANNER_ZOOM,
   SCANNER_ZOOM_VALUES,
@@ -110,13 +111,85 @@ function getProductTypeMeta(productType) {
   };
 }
 
-function ProductTypeBadge({ productType }) {
-  const meta = getProductTypeMeta(productType);
+const PRODUCT_TYPE_OPTIONS = [
+  {
+    value: "Supermercado",
+    label: "Supermercado",
+    icon: "cart-outline",
+  },
+  {
+    value: "Libros",
+    label: "Libros",
+    icon: "book-outline",
+  },
+  {
+    value: "Música",
+    label: "Música",
+    icon: "musical-notes-outline",
+  },
+];
 
+const SCANNER_PRODUCT_TYPE_STORAGE_KEY = "@shopping/scanner-product-type";
+
+function normalizeProductType(value, fallback = "Supermercado") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (normalized === "libros" || normalized === "libro") {
+    return "Libros";
+  }
+
+  if (
+    normalized === "música" ||
+    normalized === "musica" ||
+    normalized === "music"
+  ) {
+    return "Música";
+  }
+
+  if (normalized === "supermercado") {
+    return "Supermercado";
+  }
+
+  return fallback;
+}
+
+function ProductTypeSelector({ value, onChange }) {
   return (
-    <View style={styles.productTypeBadge} pointerEvents="none">
-      <Ionicons name={meta.icon} size={18} color="#FFFFFF" />
-      <Text style={styles.productTypeBadgeText}>{meta.label}</Text>
+    <View style={styles.productTypeSelector}>
+      {PRODUCT_TYPE_OPTIONS.map((option) => {
+        const selected = value === option.value;
+
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={`Tipo de producto: ${option.label}`}
+            style={({ pressed }) => [
+              styles.productTypeOption,
+              selected && styles.productTypeOptionSelected,
+              pressed && styles.productTypeOptionPressed,
+            ]}
+            onPress={() => onChange(option.value)}
+          >
+            <Ionicons
+              name={option.icon}
+              size={18}
+              color={selected ? "#FFFFFF" : "#CBD5E1"}
+            />
+            <Text
+              style={[
+                styles.productTypeOptionText,
+                selected && styles.productTypeOptionTextSelected,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -234,9 +307,62 @@ export default function NewProductScannerScreen2() {
 
   const [scannerSession, setScannerSession] = useState(0);
 
+  const [selectedProductType, setSelectedProductType] = useState(() =>
+    normalizeProductType(productType),
+  );
+
   const [webCameraState, setWebCameraState] = useState(
     Platform.OS === "web" ? "checking" : "ready",
   );
+
+  useEffect(() => {
+    let active = true;
+
+    async function restoreProductType() {
+      try {
+        const storedProductType = await storage.getString(
+          SCANNER_PRODUCT_TYPE_STORAGE_KEY,
+        );
+
+        if (!active || !storedProductType) {
+          return;
+        }
+
+        setSelectedProductType(
+          normalizeProductType(storedProductType, selectedProductType),
+        );
+      } catch (error) {
+        console.warn(
+          "[NewProductScannerScreen2] product type restore error",
+          error,
+        );
+      }
+    }
+
+    restoreProductType();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleProductTypeChange = useCallback(async (nextProductType) => {
+    const normalizedProductType = normalizeProductType(nextProductType);
+
+    setSelectedProductType(normalizedProductType);
+
+    try {
+      await storage.setString(
+        SCANNER_PRODUCT_TYPE_STORAGE_KEY,
+        normalizedProductType,
+      );
+    } catch (error) {
+      console.warn(
+        "[NewProductScannerScreen2] product type persist error",
+        error,
+      );
+    }
+  }, []);
 
   const isQuickEan13Input = captureMode === "ean13-input";
   const isManualBarcodeInput = __DEV__ && captureMode === "manual-barcode";
@@ -413,7 +539,7 @@ export default function NewProductScannerScreen2() {
         itemId,
 
         scannedBarcode: barcode,
-        productType,
+        productType: selectedProductType,
       },
     };
 
@@ -465,7 +591,10 @@ export default function NewProductScannerScreen2() {
           showStatusBadges={showStatusBadges}
         />
 
-        <ProductTypeBadge productType={productType} />
+        <ProductTypeSelector
+          value={selectedProductType}
+          onChange={handleProductTypeChange}
+        />
       </View>
     );
   }
@@ -496,7 +625,7 @@ export default function NewProductScannerScreen2() {
 
         source: cachedItem.source || "scanner",
 
-        productType,
+        productType: selectedProductType,
 
         updatedAt: now,
       };
@@ -518,7 +647,7 @@ export default function NewProductScannerScreen2() {
 
       name: product?.name || cachedItem?.name || "",
 
-      productType,
+      productType: selectedProductType,
 
       brand: product?.brand || cachedItem?.brand || "",
 
@@ -561,7 +690,7 @@ export default function NewProductScannerScreen2() {
 
         product: scannedItem,
 
-        productType,
+        productType: selectedProductType,
 
         autoOpenEngine,
       });
@@ -755,7 +884,10 @@ export default function NewProductScannerScreen2() {
           showStatusBadges={showStatusBadges}
         />
 
-        <ProductTypeBadge productType={productType} />
+        <ProductTypeSelector
+          value={selectedProductType}
+          onChange={handleProductTypeChange}
+        />
       </View>
     );
   }
@@ -768,7 +900,8 @@ export default function NewProductScannerScreen2() {
       zoom={zoom}
       torchEnabled={torchEnabled}
       showControls={showControls}
-      productType={productType}
+      productType={selectedProductType}
+      onChangeProductType={handleProductTypeChange}
       headerConfig={headerConfig}
       handleCancel={handleCancel}
       handleChangeZoom={handleChangeZoom}
@@ -787,6 +920,7 @@ function NativeProductScannerCamera({
   torchEnabled,
   showControls,
   productType,
+  onChangeProductType,
   headerConfig,
   handleCancel,
   handleChangeZoom,
@@ -880,7 +1014,10 @@ function NativeProductScannerCamera({
           subtitle="El número se procesará automáticamente cuando sea detectado."
         />
 
-        <ProductTypeBadge productType={productType} />
+        <ProductTypeSelector
+          value={productType}
+          onChange={onChangeProductType}
+        />
       </View>
     </SafeAreaView>
   );
@@ -954,29 +1091,55 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  productTypeBadge: {
+  productTypeSelector: {
     position: "absolute",
-    top: 18,
-    alignSelf: "center",
+    top: 16,
+    left: 14,
+    right: 14,
     zIndex: 30,
 
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    gap: 6,
 
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    padding: 5,
+    borderRadius: 16,
 
-    borderRadius: 999,
-
-    backgroundColor: "rgba(15, 23, 42, 0.82)",
+    backgroundColor: "rgba(15, 23, 42, 0.84)",
   },
 
-  productTypeBadgeText: {
-    color: "#FFFFFF",
+  productTypeOption: {
+    flex: 1,
 
-    fontSize: 15,
-    fontWeight: "800",
+    minHeight: 44,
+
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+
+    paddingHorizontal: 8,
+    paddingVertical: 9,
+
+    borderRadius: 12,
+  },
+
+  productTypeOptionSelected: {
+    backgroundColor: "#2563EB",
+  },
+
+  productTypeOptionPressed: {
+    opacity: 0.82,
+  },
+
+  productTypeOptionText: {
+    color: "#CBD5E1",
+
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  productTypeOptionTextSelected: {
+    color: "#FFFFFF",
   },
 
   permissionContainer: {
