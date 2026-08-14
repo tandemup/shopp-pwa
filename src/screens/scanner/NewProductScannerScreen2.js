@@ -81,6 +81,46 @@ function normalizeBarcodeTypes(value) {
   return DEFAULT_BARCODE_TYPES;
 }
 
+function getProductTypeMeta(productType) {
+  const normalized = String(productType || "Supermercado")
+    .trim()
+    .toLowerCase();
+
+  if (normalized === "libros" || normalized === "libro") {
+    return {
+      label: "Libros",
+      icon: "book-outline",
+    };
+  }
+
+  if (
+    normalized === "música" ||
+    normalized === "musica" ||
+    normalized === "music"
+  ) {
+    return {
+      label: "Música",
+      icon: "musical-notes-outline",
+    };
+  }
+
+  return {
+    label: "Supermercado",
+    icon: "cart-outline",
+  };
+}
+
+function ProductTypeBadge({ productType }) {
+  const meta = getProductTypeMeta(productType);
+
+  return (
+    <View style={styles.productTypeBadge} pointerEvents="none">
+      <Ionicons name={meta.icon} size={18} color="#FFFFFF" />
+      <Text style={styles.productTypeBadgeText}>{meta.label}</Text>
+    </View>
+  );
+}
+
 function navigateToAvailableRoute(navigation, routeName, params) {
   let currentNavigation = navigation;
 
@@ -305,7 +345,9 @@ export default function NewProductScannerScreen2() {
       const result = await requestWebCameraAccess();
 
       if (!active) return;
-      setWebCameraState(result.ok ? "ready" : result.blocked ? "blocked" : "error");
+      setWebCameraState(
+        result.ok ? "ready" : result.blocked ? "blocked" : "error",
+      );
     }
 
     prepareWebCamera();
@@ -318,7 +360,9 @@ export default function NewProductScannerScreen2() {
   async function retryWebCamera() {
     setWebCameraState("checking");
     const result = await requestWebCameraAccess();
-    setWebCameraState(result.ok ? "ready" : result.blocked ? "blocked" : "error");
+    setWebCameraState(
+      result.ok ? "ready" : result.blocked ? "blocked" : "error",
+    );
   }
 
   useEffect(() => {
@@ -420,6 +464,8 @@ export default function NewProductScannerScreen2() {
           showControls={showControls}
           showStatusBadges={showStatusBadges}
         />
+
+        <ProductTypeBadge productType={productType} />
       </View>
     );
   }
@@ -643,7 +689,11 @@ export default function NewProductScannerScreen2() {
 
       return (
         <SafeAreaView style={styles.webPermissionContainer}>
-          <StatusBar style="light" backgroundColor="#07111F" translucent={false} />
+          <StatusBar
+            style="light"
+            backgroundColor="#07111F"
+            translucent={false}
+          />
           <View style={styles.center}>
             {checking ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -704,6 +754,8 @@ export default function NewProductScannerScreen2() {
           showControls={showControls}
           showStatusBadges={showStatusBadges}
         />
+
+        <ProductTypeBadge productType={productType} />
       </View>
     );
   }
@@ -716,6 +768,7 @@ export default function NewProductScannerScreen2() {
       zoom={zoom}
       torchEnabled={torchEnabled}
       showControls={showControls}
+      productType={productType}
       headerConfig={headerConfig}
       handleCancel={handleCancel}
       handleChangeZoom={handleChangeZoom}
@@ -733,6 +786,7 @@ function NativeProductScannerCamera({
   zoom,
   torchEnabled,
   showControls,
+  productType,
   headerConfig,
   handleCancel,
   handleChangeZoom,
@@ -825,6 +879,8 @@ function NativeProductScannerCamera({
           title="Leer código de barras"
           subtitle="El número se procesará automáticamente cuando sea detectado."
         />
+
+        <ProductTypeBadge productType={productType} />
       </View>
     </SafeAreaView>
   );
@@ -895,6 +951,31 @@ const styles = StyleSheet.create({
   webCancelText: {
     color: "#FFFFFF",
     fontSize: 18,
+    fontWeight: "800",
+  },
+
+  productTypeBadge: {
+    position: "absolute",
+    top: 18,
+    alignSelf: "center",
+    zIndex: 30,
+
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+
+    borderRadius: 999,
+
+    backgroundColor: "rgba(15, 23, 42, 0.82)",
+  },
+
+  productTypeBadgeText: {
+    color: "#FFFFFF",
+
+    fontSize: 15,
     fontWeight: "800",
   },
 

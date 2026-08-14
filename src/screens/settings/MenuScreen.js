@@ -818,10 +818,6 @@ export default function MenuScreen({ navigation }) {
     navigation.navigate(ROUTES.ADMIN_USERS);
   };
 
-  const goToBarcodeSettings = () => {
-    navigation.navigate(ROUTES.BARCODE_SETTINGS);
-  };
-
   const goToScannedHistory = () => {
     navigation.navigate(ROUTES.SCANNER_TAB, {
       screen: ROUTES.SCANNED_HISTORY,
@@ -1186,13 +1182,6 @@ export default function MenuScreen({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Escáner</Text>
-
-            <SettingsCard
-              icon="barcode-outline"
-              title="Configuración del código de barras"
-              subtitle="Formatos admitidos: EAN-13, EAN-8..."
-              onPress={goToBarcodeSettings}
-            />
 
             <SettingsCard
               icon="time-outline"

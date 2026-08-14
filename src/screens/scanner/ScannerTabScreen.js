@@ -153,6 +153,10 @@ export default function ScannerTabScreen({ navigation }) {
     navigation.navigate(ROUTES.SCANNED_HISTORY);
   };
 
+  const goToBarcodeSettings = () => {
+    navigation.navigate(ROUTES.BARCODE_SETTINGS);
+  };
+
   const goToProductSearchEngines = () => {
     navigation.navigate(ROUTES.SEARCH_ENGINES, { type: "product" });
   };
@@ -259,6 +263,34 @@ export default function ScannerTabScreen({ navigation }) {
 
                 <Text style={styles.cardSubtitle}>
                   Abrir la cámara para leer un código de barras.
+                </Text>
+
+                <Text style={styles.cardMeta} numberOfLines={1}>
+                  Formatos activos: {enabledFormatsLabel}
+                </Text>
+              </View>
+
+              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={goToBarcodeSettings}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="options-outline" size={26} color="#111827" />
+              </View>
+
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>
+                  Configuración del código de barras
+                </Text>
+
+                <Text style={styles.cardSubtitle}>
+                  Elige los formatos que puede detectar el scanner.
                 </Text>
 
                 <Text style={styles.cardMeta} numberOfLines={1}>
