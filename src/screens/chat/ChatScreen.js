@@ -1234,70 +1234,67 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 12,
+    width: "100%",
+    alignItems: "stretch",
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    backgroundColor: "#f8f8f8",
   },
 
   pageTablet: {
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 18,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
 
   pageDesktop: {
-    paddingHorizontal: 36,
-    paddingTop: 30,
-    paddingBottom: 28,
-    backgroundColor: "#e2e8f0",
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    backgroundColor: "#f8f8f8",
   },
 
   pageSmallMobile: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
 
   card: {
     width: "100%",
-    maxWidth: 560,
+    maxWidth: "100%",
     flex: 1,
     backgroundColor: "#f8f8f8",
-    borderRadius: 26,
+    borderRadius: 0,
     paddingHorizontal: 14,
-    paddingTop: 18,
-    paddingBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 28,
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    elevation: 6,
+    paddingTop: 14,
+    paddingBottom: 10,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 
   cardTablet: {
-    maxWidth: 680,
+    maxWidth: "100%",
     paddingHorizontal: 18,
-    paddingTop: 22,
-    paddingBottom: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
 
   cardDesktop: {
-    maxWidth: 1120,
+    maxWidth: "100%",
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 24,
-    borderRadius: 30,
+    paddingTop: 18,
+    paddingBottom: 14,
+    borderRadius: 0,
   },
 
   cardSmallMobile: {
-    borderRadius: 22,
+    borderRadius: 0,
     paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
 
   cardHeader: {

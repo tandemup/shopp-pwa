@@ -580,11 +580,6 @@ export default function NewProductScannerScreen2() {
           showControls={showControls}
           showStatusBadges={showStatusBadges}
         />
-
-        <ProductTypeSelector
-          value={selectedProductType}
-          onChange={handleProductTypeChange}
-        />
       </View>
     );
   }

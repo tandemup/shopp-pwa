@@ -50,6 +50,7 @@ import { safeConfirm } from "@/src/components/ui/alert/safeAlert";
 import {
   buildBookLookupPrompt,
   buildMusicCdLookupPrompt,
+  buildSupermarketLookupPrompt,
 } from "@/src/constants/productLookupPrompts";
 
 const PRODUCT_DETAIL_MAX_SIZE = 256;
@@ -440,10 +441,8 @@ const PRODUCT_TYPES = ["Supermercado", "Libros", "Música"];
 
 const DETAIL_FIELDS = {
   Supermercado: [
+    ["category", "Categoría", "Categoría del producto"],
     ["subcategory", "Subcategoría", "Subcategoría del producto"],
-    ["quantity", "Cantidad", "Ej. 500"],
-    ["unit", "Unidad", "g, kg, ml, l, unidades…"],
-    ["format", "Formato o presentación", "Ej. paquete, botella, lata"],
     ["manufacturer", "Fabricante", "Empresa fabricante"],
     ["countryOfOrigin", "País de origen", "País de origen"],
     ["ingredients", "Ingredientes", "Lista de ingredientes", true],
@@ -471,7 +470,13 @@ const DETAIL_FIELDS = {
   ],
 };
 
-function ProductDetailsFields({ productType, details, onChange }) {
+function ProductDetailsFields({
+  productType,
+  details,
+  onChange,
+  category,
+  onCategoryChange,
+}) {
   const fields = DETAIL_FIELDS[productType] || [];
   if (!fields.length) return null;
 
@@ -489,8 +494,14 @@ function ProductDetailsFields({ productType, details, onChange }) {
           <View key={key} style={styles.detailsGridItem}>
             <FormField
               label={label}
-              value={String(details?.[key] || "")}
-              onChangeText={(value) => onChange(key, value)}
+              value={String(
+                key === "category" ? category || "" : details?.[key] || "",
+              )}
+              onChangeText={(value) =>
+                key === "category"
+                  ? onCategoryChange(value)
+                  : onChange(key, value)
+              }
               placeholder={placeholder}
               multiline={Boolean(multiline)}
             />
@@ -542,18 +553,23 @@ function GoogleModeIA({
   barcode,
   musicJsonSearch = false,
   bookJsonSearch = false,
+  supermarketJsonSearch = false,
   onPress,
 }) {
   const jsonSearchTitle = musicJsonSearch
     ? "Buscar ficha de CD (JSON)"
     : bookJsonSearch
       ? "Buscar ficha de libro (JSON)"
-      : "Google Modo IA";
+      : supermarketJsonSearch
+        ? "Buscar ficha de supermercado (JSON)"
+        : "Google Modo IA";
   const jsonSearchDescription = musicJsonSearch
     ? "Identifica la edición y devuelve sus datos"
     : bookJsonSearch
       ? "Identifica la edición y devuelve los datos bibliográficos"
-      : "Respuesta generada a partir del código";
+      : supermarketJsonSearch
+        ? "Identifica el producto y devuelve sus datos"
+        : "Respuesta generada a partir del código";
 
   return (
     <Pressable
@@ -848,6 +864,7 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const [productUrl, setProductUrl] = useState("");
   const [musicJson, setMusicJson] = useState("");
   const [bookJson, setBookJson] = useState("");
+  const [supermarketJson, setSupermarketJson] = useState("");
   const [selectingImage, setSelectingImage] = useState(false);
   const [localImageUri, setLocalImageUri] = useState("");
   const [imageSizeBytes, setImageSizeBytes] = useState(null);
@@ -1399,12 +1416,64 @@ export default function EditScannedItemScreen({ route, navigation }) {
         ? buildMusicCdLookupPrompt(barcode)
         : isBookProductType(productType)
           ? buildBookLookupPrompt(barcode)
-          : barcode;
+          : buildSupermarketLookupPrompt(barcode);
       await openGoogleAIMode(query);
     } catch (error) {
       setLocalError(error?.message || "No se pudo abrir Google Modo IA.");
     }
   }, [barcode, productType]);
+
+  const handleApplySupermarketJson = useCallback(() => {
+    try {
+      setLocalError(null);
+      const data = parseMusicJson(supermarketJson);
+      const jsonBarcode = normalizeBarcode(
+        data.barcode || data.ean || data.gtin,
+      );
+
+      if (jsonBarcode && barcode && jsonBarcode !== barcode) {
+        throw new Error(
+          `El JSON corresponde al código ${jsonBarcode}, no a ${barcode}.`,
+        );
+      }
+
+      const nextDetails = {
+        subcategory: normalizeString(data.subcategory),
+        manufacturer: normalizeString(data.manufacturer),
+        countryOfOrigin: normalizeString(data.countryOfOrigin),
+        ingredients: normalizeString(data.ingredients),
+        allergens: joinJsonValues(data.allergens),
+      };
+
+      setProductType("Supermercado");
+      if (normalizeString(data.name)) setName(normalizeString(data.name));
+      if (normalizeString(data.brand)) setBrand(normalizeString(data.brand));
+      if (normalizeString(data.category)) {
+        setCategory(normalizeString(data.category));
+      }
+      setDetails((current) => {
+        const merged = { ...current };
+        Object.entries(nextDetails).forEach(([key, value]) => {
+          if (value) merged[key] = value;
+        });
+        return merged;
+      });
+      const nextProductUrl = normalizeExternalUrl(
+        data.productPageUrl || data.productUrl || data.sourceUrl,
+      );
+      if (nextProductUrl) setProductUrl(nextProductUrl);
+      if (normalizeString(data.description || data.verificationNotes)) {
+        setNotes(joinJsonValues(data.description, data.verificationNotes));
+      }
+      setSupermarketJson("");
+    } catch (error) {
+      setLocalError(
+        error instanceof SyntaxError
+          ? "El texto pegado no es un JSON válido. Copia únicamente el objeto JSON."
+          : error?.message || "No se pudo aplicar la ficha de supermercado.",
+      );
+    }
+  }, [barcode, supermarketJson]);
 
   const handleApplyMusicJson = useCallback(() => {
     try {
@@ -1762,6 +1831,59 @@ export default function EditScannedItemScreen({ route, navigation }) {
                 onChange={setProductType}
               />
 
+              {isSupermarketProductType(productType) ? (
+                <>
+                  <View style={styles.musicJsonSearchAction}>
+                    <GoogleModeIA
+                      busy={busy}
+                      barcode={barcode}
+                      supermarketJsonSearch
+                      onPress={handleGoogleAIModeSearch}
+                    />
+                  </View>
+                  <View style={styles.musicJsonImporter}>
+                    <Text style={styles.label}>
+                      JSON de la ficha de supermercado
+                    </Text>
+                    <Text style={styles.musicJsonDescription}>
+                      Copia la respuesta de Google Modo IA, pégala aquí y
+                      aplícala para rellenar los campos.
+                    </Text>
+                    <TextInput
+                      value={supermarketJson}
+                      onChangeText={setSupermarketJson}
+                      placeholder={'{"barcode":"...","name":"..."}'}
+                      placeholderTextColor="#98A2B3"
+                      multiline
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.musicJsonInput}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Aplicar JSON a la ficha de supermercado"
+                      disabled={busy || !normalizeString(supermarketJson)}
+                      onPress={handleApplySupermarketJson}
+                      style={({ pressed }) => [
+                        styles.applyJsonButton,
+                        pressed && styles.applyJsonButtonPressed,
+                        (busy || !normalizeString(supermarketJson)) &&
+                          styles.disabledButton,
+                      ]}
+                    >
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.applyJsonButtonText}>
+                        Aplicar datos del JSON
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
+
               {isMusicProductType(productType) ? (
                 <>
                   <View style={styles.musicJsonSearchAction}>
@@ -1865,26 +1987,13 @@ export default function EditScannedItemScreen({ route, navigation }) {
               ) : null}
 
               {!productType || productType === "Supermercado" ? (
-                <View style={styles.formGrid}>
-                  <View style={styles.formGridItem}>
-                    <FormField
-                      label="Marca"
-                      value={brand}
-                      onChangeText={setBrand}
-                      placeholder="Marca o fabricante"
-                      autoCapitalize="words"
-                    />
-                  </View>
-
-                  <View style={styles.formGridItem}>
-                    <FormField
-                      label="Categoría"
-                      value={category}
-                      onChangeText={setCategory}
-                      placeholder="Categoría del producto"
-                    />
-                  </View>
-                </View>
+                <FormField
+                  label="Marca"
+                  value={brand}
+                  onChangeText={setBrand}
+                  placeholder="Marca o fabricante"
+                  autoCapitalize="words"
+                />
               ) : null}
 
               {isMusicProductType(productType) ? (
@@ -1899,6 +2008,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
               <ProductDetailsFields
                 productType={productType}
                 details={details}
+                category={category}
+                onCategoryChange={setCategory}
                 onChange={(key, value) =>
                   setDetails((current) => ({ ...current, [key]: value }))
                 }
