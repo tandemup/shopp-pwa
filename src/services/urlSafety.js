@@ -15,6 +15,7 @@ const YOUTUBE_HOSTS = new Set([
 ]);
 
 const VIDEO_ID_REGEX = /^[A-Za-z0-9_-]{11}$/;
+const PLAYLIST_ID_REGEX = /^[A-Za-z0-9_-]{10,80}$/;
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+/gi;
 const TRAILING_URL_PUNCTUATION_REGEX = /[.,!?;:]+$/;
@@ -82,15 +83,36 @@ export function getYouTubeVideoId(value) {
   return videoId && VIDEO_ID_REGEX.test(videoId) ? videoId : null;
 }
 
+/** Devuelve el ID de una playlist de YouTube válida. */
+export function getYouTubePlaylistId(value) {
+  const url = toUrl(value);
+  if (!url || !/^https?:$/.test(url.protocol)) return null;
+
+  const hostname = url.hostname.toLowerCase();
+  if (!YOUTUBE_HOSTS.has(hostname)) return null;
+
+  const playlistId = url.searchParams.get("list");
+  return playlistId && PLAYLIST_ID_REGEX.test(playlistId) ? playlistId : null;
+}
+
 /** Indica si el valor es un enlace YouTube permitido por Shopp. */
 export function isSafeYouTubeUrl(value) {
-  return Boolean(getYouTubeVideoId(value));
+  return Boolean(getYouTubeVideoId(value) || getYouTubePlaylistId(value));
 }
 
 /** Convierte cualquier formato aceptado a una URL reproducible estándar. */
 export function normalizeYouTubeUrl(value) {
   const videoId = getYouTubeVideoId(value);
-  return videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
+  const playlistId = getYouTubePlaylistId(value);
+
+  if (videoId) {
+    const listParam = playlistId ? `&list=${playlistId}` : "";
+    return `https://www.youtube.com/watch?v=${videoId}${listParam}`;
+  }
+
+  return playlistId
+    ? `https://www.youtube.com/playlist?list=${playlistId}`
+    : null;
 }
 
 /**
@@ -99,15 +121,22 @@ export function normalizeYouTubeUrl(value) {
  */
 export function parseYouTubeUrl(value) {
   const videoId = getYouTubeVideoId(value);
+  const playlistId = getYouTubePlaylistId(value);
 
-  if (!videoId) {
-    return { isValid: false, videoId: null, playableUrl: null };
+  if (!videoId && !playlistId) {
+    return {
+      isValid: false,
+      videoId: null,
+      playlistId: null,
+      playableUrl: null,
+    };
   }
 
   return {
     isValid: true,
     videoId,
-    playableUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    playlistId,
+    playableUrl: normalizeYouTubeUrl(value),
   };
 }
 
@@ -115,6 +144,7 @@ export default {
   extractUrlsFromText,
   normalizeUrl,
   getYouTubeVideoId,
+  getYouTubePlaylistId,
   isSafeYouTubeUrl,
   normalizeYouTubeUrl,
   parseYouTubeUrl,

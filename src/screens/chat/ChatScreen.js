@@ -68,6 +68,26 @@ const ROOM_OPTIONS = [
     label: "Avisos",
     icon: "megaphone-outline",
   },
+  {
+    id: "musica",
+    label: "Música",
+    icon: "musical-notes-outline",
+  },
+  {
+    id: "humor",
+    label: "Humor",
+    icon: "happy-outline",
+  },
+  {
+    id: "informatica",
+    label: "Informática",
+    icon: "desktop-outline",
+  },
+  {
+    id: "noticias",
+    label: "Noticias",
+    icon: "newspaper-outline",
+  },
 ];
 
 function now() {
@@ -222,8 +242,31 @@ function getYouTubeVideoId(url) {
   }
 }
 
+function getYouTubePlaylistId(url) {
+  if (!url) return null;
+
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    const parsedUrl = new URL(normalizedUrl);
+    const hostname = parsedUrl.hostname.replace(/^www\./, "");
+
+    if (
+      hostname !== "youtube.com" &&
+      hostname !== "m.youtube.com" &&
+      hostname !== "youtu.be"
+    ) {
+      return null;
+    }
+
+    const playlistId = parsedUrl.searchParams.get("list");
+    return /^[A-Za-z0-9_-]{10,80}$/.test(playlistId || "") ? playlistId : null;
+  } catch {
+    return null;
+  }
+}
+
 function isYouTubeUrl(url) {
-  return Boolean(getYouTubeVideoId(url));
+  return Boolean(getYouTubeVideoId(url) || getYouTubePlaylistId(url));
 }
 
 function getYouTubeThumbnailUrl(url) {
@@ -236,8 +279,9 @@ function getYouTubeThumbnailUrl(url) {
 
 function getYouTubeEmbedUrl(url) {
   const videoId = getYouTubeVideoId(url);
+  const playlistId = getYouTubePlaylistId(url);
 
-  if (!videoId) return null;
+  if (!videoId && !playlistId) return null;
 
   const params = new URLSearchParams({
     playsinline: "1",
@@ -251,18 +295,26 @@ function getYouTubeEmbedUrl(url) {
     params.set("origin", window.location.origin);
   }
 
+  if (playlistId && !videoId) {
+    params.set("list", playlistId);
+    return `https://www.youtube-nocookie.com/embed/videoseries?${params.toString()}`;
+  }
+
+  if (playlistId) params.set("list", playlistId);
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
 function getYouTubeRenderConfig(url, mode = DEFAULT_YOUTUBE_RENDER_MODE) {
   const normalizedUrl = normalizeUrl(url);
   const videoId = getYouTubeVideoId(normalizedUrl);
+  const playlistId = getYouTubePlaylistId(normalizedUrl);
 
-  if (!normalizedUrl || !videoId) {
+  if (!normalizedUrl || (!videoId && !playlistId)) {
     return {
       canRender: false,
       mode: null,
       videoId: null,
+      playlistId: null,
       normalizedUrl: null,
       embedUrl: null,
       thumbnailUrl: null,
@@ -278,12 +330,13 @@ function getYouTubeRenderConfig(url, mode = DEFAULT_YOUTUBE_RENDER_MODE) {
     canRender: true,
     mode: safeMode,
     videoId,
+    playlistId,
     normalizedUrl,
     embedUrl:
       safeMode === YOUTUBE_RENDER_MODE.EMBED
         ? getYouTubeEmbedUrl(normalizedUrl)
         : null,
-    thumbnailUrl: getYouTubeThumbnailUrl(normalizedUrl),
+    thumbnailUrl: videoId ? getYouTubeThumbnailUrl(normalizedUrl) : null,
   };
 }
 
@@ -460,6 +513,26 @@ function YouTubePlayer({ url, onOpenUrl, mode = DEFAULT_YOUTUBE_RENDER_MODE }) {
     );
   }
 
+  if (youtubeConfig.playlistId && !youtubeConfig.thumbnailUrl) {
+    return (
+      <Pressable
+        style={styles.youtubePlaylistPreview}
+        onPress={() => onOpenUrl(youtubeConfig.normalizedUrl)}
+      >
+        <View style={styles.youtubePlaylistIcon}>
+          <Ionicons name="logo-youtube" size={32} color="#ffffff" />
+        </View>
+        <View style={styles.youtubePlaylistContent}>
+          <Text style={styles.youtubePlaylistTitle}>Playlist de YouTube</Text>
+          <Text style={styles.youtubePlaylistDescription}>
+            Pulsa para abrir y reproducir la lista completa
+          </Text>
+        </View>
+        <Ionicons name="open-outline" size={22} color="#b91c1c" />
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       style={styles.youtubePreview}
@@ -538,9 +611,11 @@ function MessageCard({
             <Ionicons name="logo-youtube" size={15} color="#b91c1c" />
 
             <Text style={styles.youtubeOnlyBadgeText}>
-              {DEFAULT_YOUTUBE_RENDER_MODE === YOUTUBE_RENDER_MODE.EMBED
-                ? "YouTube embebido"
-                : "YouTube permitido"}
+              {getYouTubePlaylistId(firstUrl)
+                ? "Playlist de YouTube"
+                : DEFAULT_YOUTUBE_RENDER_MODE === YOUTUBE_RENDER_MODE.EMBED
+                  ? "YouTube embebido"
+                  : "YouTube permitido"}
             </Text>
           </View>
         </View>
@@ -1925,6 +2000,48 @@ const styles = StyleSheet.create({
   youtubeThumbnail: {
     width: "100%",
     height: "100%",
+  },
+
+  youtubePlaylistPreview: {
+    width: "100%",
+    maxWidth: 520,
+    minHeight: 92,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    backgroundColor: "#fff7f7",
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  youtubePlaylistIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  youtubePlaylistContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  youtubePlaylistTitle: {
+    color: "#7f1d1d",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  youtubePlaylistDescription: {
+    marginTop: 3,
+    color: "#991b1b",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
   },
 
   youtubePlayBadge: {
