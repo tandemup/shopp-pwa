@@ -3,10 +3,11 @@ export function validatePromotionUnit(promo, unit) {
     return { valid: true };
   }
 
-  if (promo.type === "multi" && unit !== "u") {
+  if (["multi", "secondUnit"].includes(promo.type) && unit !== "u") {
     return {
       valid: false,
-      message: "Ofertas tipo 2x1 / 3x2 solo válidas para unidades (u)",
+      message:
+        "Ofertas tipo 2x1 / 3x2 / 2.ª unidad solo válidas para unidades (u)",
     };
   }
 

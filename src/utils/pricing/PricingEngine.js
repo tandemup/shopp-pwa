@@ -36,6 +36,14 @@ export const PROMOTIONS = {
     hint: "Lleve 3, pague 2",
   },
 
+  secondUnit70: {
+    id: "secondUnit70",
+    label: "2.ª unidad -70%",
+    type: "secondUnit",
+    value: 70,
+    hint: "La segunda unidad tiene un 70% de descuento",
+  },
+
   discount5: {
     id: "discount5",
     label: "-5€",
@@ -87,6 +95,12 @@ export function toPromotion(promoKey) {
         value: Number(entry.value ?? 0),
       };
 
+    case "secondUnit":
+      return {
+        type: "secondUnit",
+        value: Number(entry.value ?? 0),
+      };
+
     case "discount":
       return {
         type: "discount",
@@ -107,6 +121,8 @@ export function fromPromotion(promo) {
       return `${promo.buy}x${promo.pay}`;
     case "percent":
       return `percent${promo.value}`;
+    case "secondUnit":
+      return `secondUnit${promo.value}`;
     case "discount":
       return `discount${promo.value}`;
     default:
@@ -122,6 +138,8 @@ export function getPromotionLabel(promo) {
       return `${promo.buy}x${promo.pay}`;
     case "percent":
       return `-${promo.value}%`;
+    case "secondUnit":
+      return `2.ª unidad con ${promo.value}% de descuento`;
     case "discount":
       return `-${promo.value}€`;
     default:
@@ -149,6 +167,12 @@ export function normalizePromotion(promo) {
     case "percent":
       return {
         type: "percent",
+        value: Number(promo.value ?? 0),
+      };
+
+    case "secondUnit":
+      return {
+        type: "secondUnit",
         value: Number(promo.value ?? 0),
       };
 
@@ -195,6 +219,22 @@ export function validatePromotion(promo, quantity, unitPrice) {
         ? { valid: true }
         : { valid: false, message: "Precio inválido" };
 
+    case "secondUnit":
+      if (p.value <= 0 || p.value > 100) {
+        return {
+          valid: false,
+          message: "Descuento de segunda unidad inválido",
+        };
+      }
+
+      if (qty < 2) {
+        return { valid: false, message: "Mínimo 2 unidades" };
+      }
+
+      return price > 0
+        ? { valid: true }
+        : { valid: false, message: "Precio inválido" };
+
     case "discount": {
       const baseTotal = qty * price;
 
@@ -230,6 +270,14 @@ function applyPromotion(promo, quantity, unitPrice) {
 
     case "percent":
       return base * (1 - promo.value / 100);
+
+    case "secondUnit": {
+      const pairs = Math.floor(quantity / 2);
+      const remainder = quantity % 2;
+      const secondUnitPriceRatio = 1 - promo.value / 100;
+      const payableUnits = pairs * (1 + secondUnitPriceRatio) + remainder;
+      return payableUnits * unitPrice;
+    }
 
     case "discount":
       return Math.max(0, base - promo.value);

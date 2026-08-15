@@ -10,6 +10,7 @@ export const isSamePromotion = (a, b) => {
 
     case "percent":
     case "discount":
+    case "secondUnit":
       return a.value === b.value;
 
     case "multi":

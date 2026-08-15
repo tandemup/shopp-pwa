@@ -1,13 +1,5 @@
-import { normalizePromotion, validatePromotion } from "./PricingEngine";
-
-function toNumber(value) {
-  return Number(String(value).replace(",", "."));
-}
-
-function hasDecimals(value) {
-  const n = toNumber(value);
-  return !Number.isInteger(n);
-}
+import { validatePromotion } from "./PricingEngine";
+import { validatePromotionUnit } from "./validatePromotionUnit";
 
 export function validatePricing({ qty, unit, unitPrice, promo }) {
   const errors = [];

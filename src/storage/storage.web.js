@@ -1,6 +1,8 @@
 import { webStorage } from "./indexedDbStorage.web";
 
 export const storage = {
+  getRawValue: (key) => webStorage.getItem(key),
+  setRawValue: (key, value) => webStorage.setItem(key, value),
   getString: (key) => webStorage.getItem(key),
   setString: (key, value) => webStorage.setItem(key, String(value)),
   remove: (key) => webStorage.removeItem(key),
