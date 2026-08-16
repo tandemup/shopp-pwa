@@ -64,7 +64,12 @@ function getItemSecondaryText(item) {
 function ProductThumbnail({ item, syncEnabled }) {
   const [localUri, setLocalUri] = useState("");
   const [localChecked, setLocalChecked] = useState(false);
-  const fallbackUri = item?.thumbnailUri || item?.imageUrl || "";
+  const storedFallbackUri = item?.thumbnailUri || item?.imageUrl || "";
+  // Las URL blob solo son válidas mientras vive la pestaña que las creó.
+  // Nunca deben reutilizarse desde el historial persistido.
+  const fallbackUri = String(storedFallbackUri).startsWith("blob:")
+    ? ""
+    : storedFallbackUri;
   const remoteImages = useQuery(
     api.temporaryProductImages.getMyProductImages,
     syncEnabled && item?.barcode ? { barcode: item.barcode } : "skip",
@@ -134,7 +139,7 @@ function ProductThumbnail({ item, syncEnabled }) {
       active = false;
       if (objectUrl) window.URL.revokeObjectURL(objectUrl);
     };
-  }, [item?.barcode, localChecked, localUri, remoteImages]);
+  }, [item?.barcode, localChecked, remoteImages]);
 
   const imageUri = localUri || fallbackUri;
 
