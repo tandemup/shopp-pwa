@@ -9,7 +9,9 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery } from "convex/react";
 
+import { api } from "@/convex/_generated/api";
 import { ROUTES } from "@/src/navigation/ROUTES";
 import { buildHeaderConfig } from "@/src/utils/layout/headerStyles";
 import { safeAlert } from "@/src/components/ui/alert/safeAlert";
@@ -17,6 +19,7 @@ import { safeQuestion } from "@/src/components/ui/alert/safeQuestion";
 
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import { getProductImages } from "@/src/storage/productImageStorage";
+import { restoreTemporaryProductImages } from "@/src/services/temporaryProductImageSync";
 import SearchBar from "@/src/components/features/search/SearchBar";
 
 const HISTORY_FILTERS = [
@@ -58,9 +61,14 @@ function getItemSecondaryText(item) {
   return item.brand || details.manufacturer || "Supermercado";
 }
 
-function ProductThumbnail({ item }) {
+function ProductThumbnail({ item, syncEnabled }) {
   const [localUri, setLocalUri] = useState("");
+  const [localChecked, setLocalChecked] = useState(false);
   const fallbackUri = item?.thumbnailUri || item?.imageUrl || "";
+  const remoteImages = useQuery(
+    api.temporaryProductImages.getMyProductImages,
+    syncEnabled && item?.barcode ? { barcode: item.barcode } : "skip",
+  );
 
   useEffect(() => {
     if (
@@ -86,6 +94,9 @@ function ProductThumbnail({ item }) {
           "ScannedHistoryScreen thumbnail IndexedDB load error:",
           error,
         );
+      })
+      .finally(() => {
+        if (active) setLocalChecked(true);
       });
 
     return () => {
@@ -95,6 +106,35 @@ function ProductThumbnail({ item }) {
       }
     };
   }, [item?.barcode]);
+
+  useEffect(() => {
+    if (
+      !localChecked ||
+      localUri ||
+      !item?.barcode ||
+      !remoteImages?.thumbnailUrl ||
+      typeof window === "undefined"
+    ) {
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = "";
+    restoreTemporaryProductImages(item.barcode, remoteImages)
+      .then(({ thumbnailBlob } = {}) => {
+        if (!active || !thumbnailBlob) return;
+        objectUrl = window.URL.createObjectURL(thumbnailBlob);
+        setLocalUri(objectUrl);
+      })
+      .catch((error) => {
+        console.warn("ScannedHistoryScreen thumbnail sync error:", error);
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [item?.barcode, localChecked, localUri, remoteImages]);
 
   const imageUri = localUri || fallbackUri;
 
@@ -237,7 +277,10 @@ export default function ScannedHistoryScreen({ navigation, route }) {
           onLongPress={() => handleDelete(item)}
         >
           <View style={styles.imageWrapper}>
-            <ProductThumbnail item={item} />
+            <ProductThumbnail
+              item={item}
+              syncEnabled={scanHistoryStorage.syncEnabled}
+            />
           </View>
 
           <View style={styles.infoContent}>

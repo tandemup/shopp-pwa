@@ -114,6 +114,22 @@ export default defineSchema({
     .index("by_user_barcode", ["userId", "barcode"])
     .index("by_barcode", ["barcode"]),
 
+  temporaryProductImages: defineTable({
+    userId: v.string(),
+    barcode: v.string(),
+    detailStorageId: v.id("_storage"),
+    thumbnailStorageId: v.id("_storage"),
+    detailMimeType: v.string(),
+    thumbnailMimeType: v.string(),
+    detailBytes: v.float64(),
+    thumbnailBytes: v.float64(),
+    createdAt: v.float64(),
+    updatedAt: v.float64(),
+    expiresAt: v.float64(),
+  })
+    .index("by_user_barcode", ["userId", "barcode"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   chatMessages: defineTable({
     userId: v.optional(v.string()),
 

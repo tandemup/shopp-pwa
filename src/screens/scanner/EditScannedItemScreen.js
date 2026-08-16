@@ -43,6 +43,10 @@ import {
 } from "@/src/services/productLookup";
 
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
+import {
+  restoreTemporaryProductImages,
+  uploadTemporaryProductImages,
+} from "@/src/services/temporaryProductImageSync";
 import { normalizeBarcode } from "@/src/utils/barcodeNormalization";
 import BarcodeLink from "@/src/components/controls/BarcodeLink";
 import { ROUTES } from "@/src/navigation/ROUTES";
@@ -826,10 +830,25 @@ export default function EditScannedItemScreen({ route, navigation }) {
   const deleteProductByBarcode = useMutation(
     api.productCache.deleteProductByBarcode,
   );
+  const generateProductImageUploadUrl = useMutation(
+    api.temporaryProductImages.generateUploadUrl,
+  );
+  const saveRemoteProductImages = useMutation(
+    api.temporaryProductImages.saveMyProductImages,
+  );
+  const removeRemoteProductImages = useMutation(
+    api.temporaryProductImages.removeMyProductImages,
+  );
   const currentUser = useQuery(api.users.current);
   const scanHistoryStorage = useScannedHistoryStorage();
   const userIsLoading = currentUser === undefined;
   const isAdmin = currentUser?.isAdmin === true;
+  const remoteProductImages = useQuery(
+    api.temporaryProductImages.getMyProductImages,
+    currentUser && scanHistoryStorage.syncEnabled && barcode
+      ? { barcode }
+      : "skip",
+  );
 
   const {
     loading: internetLookupLoading,
@@ -933,6 +952,33 @@ export default function EditScannedItemScreen({ route, navigation }) {
       return window.URL.createObjectURL(blob);
     });
   }, []);
+
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      !barcode ||
+      !remoteProductImages?.detailUrl ||
+      typeof window === "undefined"
+    ) {
+      return undefined;
+    }
+
+    let active = true;
+    restoreTemporaryProductImages(barcode, remoteProductImages)
+      .then(({ detailBlob, thumbnailBlob } = {}) => {
+        if (!active || !detailBlob) return;
+        showLocalDetailBlob(detailBlob);
+        setImageSizeBytes(detailBlob.size);
+        setThumbnailSizeBytes(thumbnailBlob?.size || null);
+      })
+      .catch((error) => {
+        console.warn("Temporary product image restore failed:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [barcode, remoteProductImages, showLocalDetailBlob]);
 
   const persistLocalProductImage = useCallback(
     async (sourceBlob, source = "gallery") => {
@@ -1244,8 +1290,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
     setLocalError(null);
 
     try {
-      // Las imágenes del producto se guardan exclusivamente en IndexedDB
-      // (detalle JPEG <= 256 px + thumbnail JPEG <= 64 px).
+      // IndexedDB sigue siendo la copia principal. Si el usuario activó la
+      // sincronización, Convex conserva ambas imágenes durante siete días.
       const normalizedDetails = Object.fromEntries(
         Object.entries(details || {})
           .map(([key, value]) => [key, normalizeString(value)])
@@ -1282,6 +1328,20 @@ export default function EditScannedItemScreen({ route, navigation }) {
         };
 
         await scanHistoryStorage.updateScannedEntry(barcode, historyPatch);
+        if (scanHistoryStorage.syncEnabled) {
+          try {
+            await uploadTemporaryProductImages({
+              barcode,
+              generateUploadUrl: generateProductImageUploadUrl,
+              saveRemoteImages: saveRemoteProductImages,
+            });
+          } catch (imageSyncError) {
+            console.warn(
+              "Temporary product image upload failed:",
+              imageSyncError,
+            );
+          }
+        }
         navigation.goBack();
         return;
       }
@@ -1315,6 +1375,18 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
       await scanHistoryStorage.updateScannedEntry(barcode, historyPatch);
 
+      if (scanHistoryStorage.syncEnabled) {
+        try {
+          await uploadTemporaryProductImages({
+            barcode,
+            generateUploadUrl: generateProductImageUploadUrl,
+            saveRemoteImages: saveRemoteProductImages,
+          });
+        } catch (imageSyncError) {
+          console.warn("Temporary product image upload failed:", imageSyncError);
+        }
+      }
+
       setProduct(savedProduct);
       navigation.goBack();
     } catch (error) {
@@ -1344,6 +1416,8 @@ export default function EditScannedItemScreen({ route, navigation }) {
     submitProductReview,
     scanHistoryStorage,
     navigation,
+    generateProductImageUploadUrl,
+    saveRemoteProductImages,
   ]);
 
   const handleDeleteFromHistory = useCallback(async () => {
@@ -1357,6 +1431,9 @@ export default function EditScannedItemScreen({ route, navigation }) {
 
     try {
       await scanHistoryStorage.removeScannedItem(barcode);
+      if (scanHistoryStorage.syncEnabled) {
+        await removeRemoteProductImages({ barcode });
+      }
       navigation.goBack();
     } catch (error) {
       console.error("EditScannedItemScreen delete error:", error);
@@ -1365,7 +1442,12 @@ export default function EditScannedItemScreen({ route, navigation }) {
     } finally {
       setDeleting(false);
     }
-  }, [barcode, navigation, scanHistoryStorage]);
+  }, [
+    barcode,
+    navigation,
+    scanHistoryStorage,
+    removeRemoteProductImages,
+  ]);
 
   const handleDeleteFromDatabase = useCallback(async () => {
     if (!barcode) {
