@@ -10,6 +10,7 @@ import YesterdayNewsScreen from "@/src/screens/chat/YesterdayNewsScreen";
 import ParkingScreen from "@/src/screens/parking/ParkingScreen";
 import ParkingSettingsScreen from "@/src/screens/parking/ParkingSettingsScreen";
 import ParkingGpsDebugScreen from "@/src/screens/parking/ParkingGpsDebugScreen";
+import ChatPrototypeScreen from "@/src/screens/chat/ChatPrototypeScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +74,13 @@ export default function ChatStack() {
         options={{
           title: "GPS Debug",
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="ChatPrototype"
+        component={ChatPrototypeScreen}
+        options={{
+          title: "Chat de compras",
         }}
       />
     </Stack.Navigator>

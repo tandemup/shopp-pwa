@@ -5,7 +5,7 @@ import {
   Pressable,
   StyleSheet,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
 
@@ -227,6 +227,24 @@ function QuickActions({
         onPress: () =>
           navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.PARKING_SCREEN),
       },
+      ...(__DEV__
+        ? [
+            {
+              key: "chatPrototype",
+              label: "Chat prototipo",
+              description: "Prueba el nuevo chat de compras",
+              icon: "chatbubbles-outline",
+              iconColor: COLORS.orange,
+              iconBackground: COLORS.orangeSoft,
+              badgeLabel: "DEV",
+              onPress: () =>
+                navigateToNestedRoute(
+                  ROUTES.CHAT_TAB,
+                  ROUTES.CHAT_PROTOTYPE ?? "ChatPrototype",
+                ),
+            },
+          ]
+        : []),
       ...(isAdmin
         ? [
             {
