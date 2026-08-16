@@ -1,4 +1,5 @@
 import React from "react";
+import { tr, useI18n } from "@/src/i18n";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, StyleSheet } from "react-native";
@@ -21,6 +22,7 @@ const WEB_SAFE_BOTTOM = "max(env(safe-area-inset-bottom, 0px), 12px)";
 const WEB_TAB_BAR_HEIGHT = `calc(${TAB_BAR_CONTENT_HEIGHT}px + env(safe-area-inset-bottom, 0px))`;
 
 export default function MainTabs() {
+  useI18n();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM_PADDING);
   const tabBarHeight =
@@ -110,7 +112,7 @@ export default function MainTabs() {
           },
         })}
         options={{
-          title: "Tiendas",
+          title: tr("Tiendas"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="storefront"
@@ -181,7 +183,7 @@ export default function MainTabs() {
           },
         })}
         options={{
-          title: "Menu",
+          title: tr("Menu"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="menu" size={Math.min(size, 30)} color={color} />
           ),

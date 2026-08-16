@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAction, useMutation } from "convex/react";

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";

@@ -7,9 +7,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";

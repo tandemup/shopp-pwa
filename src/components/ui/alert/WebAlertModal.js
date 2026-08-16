@@ -7,9 +7,10 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 export default function WebAlertModal({ dialog, onSelect, onClose }) {
   if (!dialog) {

@@ -4,9 +4,10 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import { useIsFocused } from "@react-navigation/native";
 

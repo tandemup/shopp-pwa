@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList } from "react-native";
+import { View, Pressable, FlatList } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 

@@ -5,14 +5,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text, useI18n } from "@/src/i18n";
+
 
 import { useFocusEffect } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as FileSystem from "expo-file-system";
-import * as DocumentPicker from "expo-document-picker";
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
@@ -41,10 +41,6 @@ import {
 import { useScannedHistoryStorage } from "@/src/hooks/useScannedHistoryStorage";
 import { useLists } from "@/src/context/ListsContext";
 import { useStores } from "@/src/context/StoresContext";
-import {
-  exportCompleteBackup,
-  restoreCompleteBackup,
-} from "@/src/services/backupZip";
 
 const USER_EXPORT_VERSION = 1;
 
@@ -592,6 +588,7 @@ async function requestWebCameraPermission() {
 }
 
 export default function MenuScreen({ navigation }) {
+  const { language, setLanguage } = useI18n();
   const { signOut } = useAuthActions();
   const currentUser = useQuery(api.users.current);
   const importItemsFromAsyncStorage = useMutation(
@@ -606,8 +603,6 @@ export default function MenuScreen({ navigation }) {
 
   const [locationPermission, setLocationPermission] = useState(null);
   const [exportingUserData, setExportingUserData] = useState(false);
-  const [exportingBackup, setExportingBackup] = useState(false);
-  const [restoringBackup, setRestoringBackup] = useState(false);
   const [importingItems, setImportingItems] = useState(false);
 
   const {
@@ -623,6 +618,20 @@ export default function MenuScreen({ navigation }) {
   const { reloadStoresFromSeed } = useStores();
   const isAdmin =
     currentUser?.isAdmin === true || currentUser?.role === "admin";
+
+  const handleLanguagePress = () => {
+    safeAlert("Idioma de la aplicación", "Selecciona el idioma de la interfaz", [
+      {
+        text: "Español",
+        onPress: () => setLanguage("es"),
+      },
+      {
+        text: "Inglés",
+        onPress: () => setLanguage("en"),
+      },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
 
   const handleSignOut = () => {
     safeAlert("Cerrar sesión", "¿Quieres cerrar tu sesión de Shopp?", [
@@ -872,94 +881,6 @@ export default function MenuScreen({ navigation }) {
       );
     } finally {
       setExportingUserData(false);
-    }
-  };
-
-  const handleExportCompleteBackup = async () => {
-    if (exportingBackup || restoringBackup) return;
-    try {
-      setExportingBackup(true);
-      const scanHistory = await scanHistoryStorage.getScannedHistory();
-      const result = await exportCompleteBackup({
-        user: currentUser
-          ? {
-              id: currentUser._id ? String(currentUser._id) : null,
-              name: currentUser.name ?? null,
-              email: currentUser.email ?? null,
-              profile: currentUser.profile ?? null,
-            }
-          : null,
-        scanHistory,
-      });
-      safeAlert(
-        "Copia completada",
-        `${result.filename}\n${result.recordCount} grupos de datos y ${result.mediaCount} imágenes.`,
-      );
-    } catch (error) {
-      console.warn("[MenuScreen] complete backup error", error);
-      safeAlert(
-        "Error al crear la copia",
-        error?.message || "No se pudo generar el ZIP completo.",
-      );
-    } finally {
-      setExportingBackup(false);
-    }
-  };
-
-  const runBackupRestore = async (asset, mode) => {
-    try {
-      setRestoringBackup(true);
-      const result = await restoreCompleteBackup(asset, { mode });
-      const message = `Se han restaurado ${result.recordCount} grupos de datos y ${result.mediaCount} imágenes.`;
-      safeAlert("Restauración completada", message, [
-        {
-          text: Platform.OS === "web" ? "Recargar Shopp" : "Aceptar",
-          onPress: () => {
-            if (Platform.OS === "web" && typeof window !== "undefined")
-              window.location.reload();
-          },
-        },
-      ]);
-    } catch (error) {
-      console.warn("[MenuScreen] restore backup error", error);
-      safeAlert(
-        "No se pudo restaurar",
-        error?.message || "La copia ZIP no es válida.",
-      );
-    } finally {
-      setRestoringBackup(false);
-    }
-  };
-
-  const handleRestoreCompleteBackup = async () => {
-    if (exportingBackup || restoringBackup) return;
-    try {
-      const selection = await DocumentPicker.getDocumentAsync({
-        type: ["application/zip", "application/x-zip-compressed"],
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (selection.canceled || !selection.assets?.[0]) return;
-      const asset = selection.assets[0];
-      safeAlert(
-        "Restaurar copia ZIP",
-        "Combinar conserva los datos actuales. Reemplazar elimina primero los datos locales de Shopp.",
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Combinar", onPress: () => runBackupRestore(asset, "merge") },
-          {
-            text: "Reemplazar",
-            style: "destructive",
-            onPress: () => runBackupRestore(asset, "replace"),
-          },
-        ],
-      );
-    } catch (error) {
-      console.warn("[MenuScreen] select backup error", error);
-      safeAlert(
-        "No se pudo abrir la copia",
-        error?.message || "No se pudo seleccionar el ZIP.",
-      );
     }
   };
 
@@ -1276,6 +1197,18 @@ export default function MenuScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Idioma</Text>
+
+            <SettingsCard
+              icon="language-outline"
+              title="Idioma de la aplicación"
+              subtitle={language === "en" ? "English" : "Español"}
+              badge={language.toUpperCase()}
+              onPress={handleLanguagePress}
+            />
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Escáner</Text>
 
             <SettingsCard
@@ -1296,24 +1229,6 @@ export default function MenuScreen({ navigation }) {
               badge={exportingUserData ? "..." : "JSON"}
               disabled={exportingUserData}
               onPress={handleExportUserData}
-            />
-
-            <SettingsCard
-              icon="archive-outline"
-              title="Exportar copia completa"
-              subtitle="Genera un ZIP con datos, manifiesto e imágenes locales"
-              badge={exportingBackup ? "..." : "ZIP"}
-              disabled={exportingBackup || restoringBackup}
-              onPress={handleExportCompleteBackup}
-            />
-
-            <SettingsCard
-              icon="cloud-upload-outline"
-              title="Restaurar copia ZIP"
-              subtitle="Permite combinar la copia con los datos actuales o reemplazarlos"
-              badge={restoringBackup ? "..." : "ZIP"}
-              disabled={exportingBackup || restoringBackup}
-              onPress={handleRestoreCompleteBackup}
             />
           </View>
 

@@ -1,7 +1,9 @@
 // components/WebZoomResetButton.js
 
 import React, { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 export default function WebZoomResetButton() {

@@ -1,4 +1,5 @@
 // navigation/ScannerStack.js
+import { tr, useI18n } from "@/src/i18n";
 
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -18,6 +19,7 @@ import AdminProductReviewsScreen from "@/src/screens/admin/AdminProductReviewsSc
 const Stack = createNativeStackNavigator();
 
 export default function ScannerStack() {
+  useI18n();
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.SCANNER_HOME}
@@ -33,7 +35,7 @@ export default function ScannerStack() {
         name={ROUTES.PRODUCT_BARCODE_SCANNER}
         component={ProductBarcodeScannerScreen}
         options={{
-          title: "Leer código de barras",
+          title: tr("Leer código de barras"),
           headerShown: false,
           presentation: "fullScreenModal",
         }}
@@ -43,7 +45,7 @@ export default function ScannerStack() {
         name={ROUTES.NEW_PRODUCT_SCANNER2}
         component={NewProductScannerScreen2}
         options={{
-          title: "Escanear nuevo producto2",
+          title: tr("Escanear nuevo producto2"),
           headerShown: false,
           gestureEnabled: false,
         }}
@@ -53,39 +55,39 @@ export default function ScannerStack() {
         name={ROUTES.PRODUCT_INFO}
         component={ProductInfoScreen}
         options={{
-          title: "Información del producto",
+          title: tr("Información del producto"),
         }}
       />
 
       <Stack.Screen
         name={ROUTES.EDIT_SCANNED_ITEM}
         component={EditScannedItemScreen}
-        options={{ title: "Editar escaneo" }}
+        options={{ title: tr("Editar escaneo") }}
       />
 
       <Stack.Screen
         name={ROUTES.SCANNED_HISTORY}
         component={ScannedHistoryScreen}
-        options={{ title: "Historial de escaneos" }}
+        options={{ title: tr("Historial de escaneos") }}
       />
 
       <Stack.Screen
         name={ROUTES.SEARCH_ENGINES}
         component={SearchEngines}
-        options={{ title: "Motor de búsqueda" }}
+        options={{ title: tr("Motor de búsqueda") }}
       />
 
       <Stack.Screen
         name={ROUTES.BARCODE_SETTINGS}
         component={BarcodeSettingsScreen}
-        options={{ title: "Código de barras" }}
+        options={{ title: tr("Código de barras") }}
       />
 
       <Stack.Screen
         name="AdminProductReviews"
         component={AdminProductReviewsScreen}
         options={{
-          title: "Productos pendientes de revisión",
+          title: tr("Productos pendientes de revisión"),
         }}
       />
     </Stack.Navigator>

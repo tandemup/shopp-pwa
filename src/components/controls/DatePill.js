@@ -1,5 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 const DEFAULT_LOCALE = "es-ES";

@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import {
+  useRoute,
+  useNavigation } from "@react-navigation/native";
+import { View,
+  StyleSheet,
+  Pressable,
+  ScrollView
+} from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";

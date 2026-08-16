@@ -21,6 +21,7 @@ export const STORAGE_KEYS = {
   SHOPPING_LOCATION: "@shopping/shopping-location",
 
   BARCODE_SETTINGS: "@shopping/barcode-settings",
+  LANGUAGE: "@shopping/language",
 };
 
 export function getUserScopedStorageKey(userId, key) {

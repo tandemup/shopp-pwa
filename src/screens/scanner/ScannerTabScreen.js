@@ -3,12 +3,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   StyleSheet,
   Pressable,
-  ScrollView,
+  ScrollView
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 

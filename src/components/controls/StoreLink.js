@@ -1,5 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { openExternalUrl } from "@/src/utils/openExternalUrl";
 import { Ionicons } from "@expo/vector-icons";
 

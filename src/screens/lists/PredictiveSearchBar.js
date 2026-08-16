@@ -2,12 +2,12 @@
 import React, { useMemo, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   Pressable,
   FlatList,
-  StyleSheet,
+  StyleSheet
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 export default function PredictiveSearchBar({

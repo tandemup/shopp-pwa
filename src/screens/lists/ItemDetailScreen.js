@@ -2,15 +2,15 @@ import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";

@@ -1,6 +1,8 @@
 // screens/StoresFavoritesScreen.js
 import React, { useEffect, useMemo } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
+import { View, FlatList, Pressable, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 

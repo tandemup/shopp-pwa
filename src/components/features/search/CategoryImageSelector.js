@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { View, Image, Pressable, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 function getSubcategoryId(subcategory) {

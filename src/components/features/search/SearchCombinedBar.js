@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef } from "react";
 import {
   View,
-  TextInput,
   FlatList,
-  Text,
   TouchableOpacity,
-  StyleSheet,
+  StyleSheet
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { useStores } from "@/src/context/StoresContext";

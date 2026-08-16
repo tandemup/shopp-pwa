@@ -1,4 +1,5 @@
 import React from "react";
+import { tr, useI18n } from "@/src/i18n";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "@/src/navigation/ROUTES";
@@ -11,6 +12,7 @@ import AdminUsersScreen from "@/src/screens/admin/AdminUsersScreen";
 const Stack = createNativeStackNavigator();
 
 export default function MenuStack() {
+  useI18n();
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.MENU}
@@ -19,7 +21,7 @@ export default function MenuStack() {
       <Stack.Screen
         name={ROUTES.MENU}
         component={MenuScreen}
-        options={{ title: "Menú" }}
+        options={{ title: tr("Menú") }}
       />
 
       <Stack.Screen

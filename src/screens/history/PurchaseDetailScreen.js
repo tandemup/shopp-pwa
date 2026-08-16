@@ -1,7 +1,9 @@
 // PurchaseDetailScreen.js
 
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { View, StyleSheet, FlatList, Pressable } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useRoute, useNavigation } from "@react-navigation/native";

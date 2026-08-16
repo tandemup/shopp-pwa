@@ -1,13 +1,14 @@
 import React, { useMemo, useEffect } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
+  ScrollView
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 import BarcodeLink from "@/src/components/controls/BarcodeLink";
 

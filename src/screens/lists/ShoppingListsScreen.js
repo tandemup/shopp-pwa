@@ -4,11 +4,11 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";

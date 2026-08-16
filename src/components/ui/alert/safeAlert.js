@@ -1,4 +1,5 @@
 import { Alert, Platform } from "react-native";
+import { tr } from "@/src/i18n";
 
 let dialogListener = null;
 
@@ -25,7 +26,7 @@ function normalizeButton(button, index) {
   return {
     key: button.key ?? `dialog-button-${index}`,
 
-    text: button.text ?? button.label ?? "",
+    text: tr(button.text ?? button.label ?? ""),
 
     style:
       button.style === "cancel" || button.style === "destructive"
@@ -33,7 +34,7 @@ function normalizeButton(button, index) {
         : "default",
 
     description:
-      typeof button.description === "string" ? button.description : "",
+      typeof button.description === "string" ? tr(button.description) : "",
 
     badge: button.badge,
 
@@ -186,6 +187,8 @@ function showNativeFallback(title, message, buttons) {
  * Muestra una alerta con la misma interfaz en iOS, Android y Web.
  */
 export function safeAlert(title, message, buttons = []) {
+  title = tr(title);
+  message = tr(message);
   const normalizedButtons = normalizeButtons(buttons);
 
   const finalButtons =
@@ -251,6 +254,8 @@ export function safeConfirm(title, message, onConfirm, options = {}) {
  * Muestra un menú de opciones con la misma interfaz en iOS, Android y Web.
  */
 export function safeMenu(title, message, buttons = []) {
+  title = tr(title);
+  message = tr(message);
   const normalizedButtons = normalizeButtons(buttons);
 
   if (normalizedButtons.length === 0) {

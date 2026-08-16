@@ -8,9 +8,10 @@ import {
   Linking,
   Pressable,
   StyleSheet,
-  Text,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import { isTrustedDomain } from "@/src/services/urlSafety";
 

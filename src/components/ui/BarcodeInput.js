@@ -1,11 +1,11 @@
 import React from "react";
 import {
   View,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  Platform,
+  Platform
 } from "react-native";
+import { I18nTextInput as TextInput } from "@/src/i18n";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function BarcodeInput({

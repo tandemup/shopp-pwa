@@ -1,7 +1,9 @@
 // screens/settings/BarcodeSettingsScreen.js
 
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Switch, StyleSheet, ScrollView } from "react-native";
+import { View, Switch, StyleSheet, ScrollView } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";

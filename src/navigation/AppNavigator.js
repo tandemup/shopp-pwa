@@ -1,5 +1,7 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 
 import AuthStack from "@/src/navigation/AuthStack";

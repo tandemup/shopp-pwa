@@ -1,5 +1,7 @@
 import React from "react";
-import { Text, Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Ionicons } from "@expo/vector-icons";
 
 export default function StorePill({

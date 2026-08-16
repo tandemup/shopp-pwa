@@ -2,12 +2,13 @@
 import React, { useEffect, useRef } from "react";
 import {
   View,
-  Text,
   Image,
   StyleSheet,
   ActivityIndicator,
-  Animated,
+  Animated
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import splashIcon from "@/assets/images/splash-icon.png";
 //source={require("../assets/images/splash-icon.png")}
 

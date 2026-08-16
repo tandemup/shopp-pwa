@@ -1,7 +1,9 @@
 // src/components/products/CachedProductImage.js
 
 import React, { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import { getCachedProductImageUri } from "@/src/utils/productImageCache";
 

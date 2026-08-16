@@ -1,6 +1,8 @@
 // screens/StoresNearbyScreen.js
 import React, { useEffect, useMemo } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
+import { View, FlatList, Pressable, StyleSheet } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";

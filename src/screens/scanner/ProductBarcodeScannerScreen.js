@@ -9,12 +9,13 @@ import React, {
 } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Platform,
+  Platform
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";

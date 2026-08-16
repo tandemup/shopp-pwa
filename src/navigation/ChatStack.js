@@ -1,4 +1,5 @@
 import React from "react";
+import { tr, useI18n } from "@/src/i18n";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "@/src/navigation/ROUTES";
@@ -13,6 +14,7 @@ import ParkingGpsDebugScreen from "@/src/screens/parking/ParkingGpsDebugScreen";
 const Stack = createNativeStackNavigator();
 
 export default function ChatStack() {
+  useI18n();
   return (
     <Stack.Navigator
       initialRouteName={ROUTES.CHAT_SCREEN}
@@ -48,7 +50,7 @@ export default function ChatStack() {
         name={ROUTES.PARKING_SCREEN}
         component={ParkingScreen}
         options={{
-          title: "Parking",
+          title: tr("Parking"),
           headerShown: false,
         }}
       />
@@ -57,7 +59,7 @@ export default function ChatStack() {
         name={ROUTES.PARKING_SETTINGS}
         component={ParkingSettingsScreen}
         options={{
-          title: "Ajustes de parking",
+          title: tr("Ajustes de parking"),
           presentation: "card",
           headerShown: false,
           contentStyle: {

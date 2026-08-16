@@ -1,4 +1,5 @@
 import React from "react";
+import { tr, useI18n } from "@/src/i18n";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import AuthHomeScreen from "@/src/screens/auth/AuthHomeScreen";
@@ -9,6 +10,7 @@ import ResetPasswordScreen from "@/src/screens/auth/ResetPasswordScreen";
 const Stack = createNativeStackNavigator();
 
 export default function AuthStack() {
+  useI18n();
   return (
     <Stack.Navigator
       initialRouteName="AuthHome"
@@ -23,7 +25,7 @@ export default function AuthStack() {
         name="ResetPassword"
         component={ResetPasswordScreen}
         options={{
-          title: "Restablecer contraseña",
+          title: tr("Restablecer contraseña"),
           headerShown: false,
         }}
       />

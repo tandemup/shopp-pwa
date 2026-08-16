@@ -1,7 +1,9 @@
 // src/components/controls/BarcodeLink.js
 
 import React, { useCallback } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import * as Clipboard from "expo-clipboard";
 

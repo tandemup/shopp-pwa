@@ -1,5 +1,6 @@
 import React from "react";
-import { View, TextInput, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { I18nTextInput as TextInput } from "@/src/i18n";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function SearchBar({

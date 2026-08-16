@@ -10,24 +10,27 @@ import { ListsProvider } from "@/src/context/ListsContext";
 import { StoresProvider } from "@/src/context/StoresContext";
 import DialogHost from "@/src/components/ui/alert/DialogHost";
 import AppNavigator from "@/src/navigation/AppNavigator";
+import { I18nProvider } from "@/src/i18n";
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL);
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ConvexAuthProvider client={convex}>
-        <ListsProvider>
-          <StoresProvider>
-            <LocationProvider>
-              <NavigationContainer>
-                <AppNavigator />
-              </NavigationContainer>
-              {Platform.OS === "web" ? <DialogHost /> : null}
-            </LocationProvider>
-          </StoresProvider>
-        </ListsProvider>
-      </ConvexAuthProvider>
-    </SafeAreaProvider>
+    <I18nProvider>
+      <SafeAreaProvider>
+        <ConvexAuthProvider client={convex}>
+          <ListsProvider>
+            <StoresProvider>
+              <LocationProvider>
+                <NavigationContainer>
+                  <AppNavigator />
+                </NavigationContainer>
+                {Platform.OS === "web" ? <DialogHost /> : null}
+              </LocationProvider>
+            </StoresProvider>
+          </ListsProvider>
+        </ConvexAuthProvider>
+      </SafeAreaProvider>
+    </I18nProvider>
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { tr, useI18n } from "@/src/i18n";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { ROUTES } from "./ROUTES";
@@ -20,6 +21,7 @@ import MenuScreen from "@/src/screens/settings/MenuScreen";
 const Stack = createNativeStackNavigator();
 
 export default function ShoppingStack() {
+  useI18n();
   return (
     <Stack.Navigator screenOptions={DEFAULT_HEADER_OPTIONS}>
       <Stack.Screen

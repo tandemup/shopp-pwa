@@ -12,10 +12,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
-  useWindowDimensions,
+  useWindowDimensions
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { Image } from "expo-image";
 
 import { ROUTES } from "@/src/navigation/ROUTES";

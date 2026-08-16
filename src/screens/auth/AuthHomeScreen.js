@@ -4,10 +4,11 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 export default function AuthHomeScreen({ navigation }) {
   const { width } = useWindowDimensions();

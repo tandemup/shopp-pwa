@@ -12,10 +12,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  View,
+  View
 } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";

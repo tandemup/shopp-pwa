@@ -1,7 +1,9 @@
 // screens/scanner/ScannedHistoryScreen.js
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
+import { View, FlatList, StyleSheet, Pressable } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";

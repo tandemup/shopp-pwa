@@ -1,6 +1,8 @@
 // screens/StoresBrowseScreen.js
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { View, StyleSheet, FlatList, Pressable } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 import { StatusBar } from "expo-status-bar";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";

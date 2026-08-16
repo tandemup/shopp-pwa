@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, StyleSheet, ScrollView } from "react-native";
+import { View, Switch, StyleSheet, ScrollView } from "react-native";
+import { I18nText as Text } from "@/src/i18n";
+
 
 import {
   getSearchSettings,
