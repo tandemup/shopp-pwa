@@ -238,10 +238,7 @@ function QuickActions({
               iconBackground: COLORS.orangeSoft,
               badgeLabel: "DEV",
               onPress: () =>
-                navigateToNestedRoute(
-                  ROUTES.CHAT_TAB,
-                  ROUTES.CHAT_PROTOTYPE ?? "ChatPrototype",
-                ),
+                navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.CHAT_PROTOTYPE),
             },
           ]
         : []),

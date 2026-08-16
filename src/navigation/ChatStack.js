@@ -77,7 +77,7 @@ export default function ChatStack() {
         }}
       />
       <Stack.Screen
-        name="ChatPrototype"
+        name={ROUTES.CHAT_PROTOTYPE}
         component={ChatPrototypeScreen}
         options={{
           title: "Chat de compras",

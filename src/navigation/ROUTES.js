@@ -65,6 +65,7 @@ export const ROUTES = {
   // Chat stack
   CHAT_SCREEN: "Chat",
   CHAT_SCREEN_RESPONSIVE: "Chat Responsive",
+  CHAT_PROTOTYPE: "ChatPrototype",
   PARKING_SCREEN: "Parking",
   PARKING_SETTINGS: "ParkingSettings",
   YESTERDAY_NEWS_SCREEN: "Yesterday News",

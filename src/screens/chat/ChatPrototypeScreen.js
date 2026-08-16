@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -6,97 +6,62 @@ import {
   Pressable,
   SafeAreaView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useMutation, useQuery } from "convex/react";
 
-const ROOMS = [
-  { id: "centro-comercial", label: "Centro comercial" },
-  { id: "supermercado", label: "Supermercado" },
-  { id: "tienda", label: "Tienda" },
-];
+import { api } from "@/convex/_generated/api";
+import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 
-const INITIAL_MESSAGES = [
-  {
-    id: "m1",
-    alias: "María",
-    text: "El detergente Ariel tiene 2ª unidad -70%.",
-    createdAt: Date.now() - 1000 * 60 * 8,
-    mine: false,
-  },
-  {
-    id: "m2",
-    alias: "Carlos",
-    text: "¿Alguien sabe dónde están las cápsulas de café?",
-    createdAt: Date.now() - 1000 * 60 * 5,
-    mine: false,
-  },
-  {
-    id: "m3",
-    alias: "Ana",
-    text: "Pasillo 12, al fondo.",
-    createdAt: Date.now() - 1000 * 60 * 3,
-    mine: false,
-  },
-];
+const DEMO_STORE = {
+  id: "store-demo-001",
+  name: "Supermercado demo",
+  address: "Tienda de prueba",
+};
+
+const MAX_MESSAGE_LENGTH = 500;
 
 function formatTime(timestamp) {
-  return new Intl.DateTimeFormat("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+  if (!timestamp) return "";
+
+  try {
+    return new Intl.DateTimeFormat("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(timestamp));
+  } catch {
+    return "";
+  }
 }
 
-function RoomSelector({ value, onChange }) {
-  return (
-    <View style={styles.roomSelector}>
-      {ROOMS.map((room) => {
-        const active = room.id === value;
-        return (
-          <Pressable
-            key={room.id}
-            onPress={() => onChange(room.id)}
-            style={[styles.roomButton, active && styles.roomButtonActive]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-          >
-            <Text
-              style={[
-                styles.roomButtonText,
-                active && styles.roomButtonTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              {room.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function MessageBubble({ item }) {
+function MessageBubble({ item, mine }) {
   return (
     <View
       style={[
         styles.messageRow,
-        item.mine ? styles.messageRowMine : styles.messageRowOther,
+        mine ? styles.messageRowMine : styles.messageRowOther,
       ]}
     >
       <View
         style={[
           styles.messageBubble,
-          item.mine ? styles.messageBubbleMine : styles.messageBubbleOther,
+          mine ? styles.messageBubbleMine : styles.messageBubbleOther,
         ]}
       >
-        {!item.mine ? <Text style={styles.alias}>{item.alias}</Text> : null}
+        {!mine ? (
+          <Text style={styles.alias} numberOfLines={1}>
+            {item.username || "Usuario"}
+          </Text>
+        ) : null}
 
         <Text style={styles.messageText}>{item.text}</Text>
 
-        <Text style={styles.messageTime}>{formatTime(item.createdAt)}</Text>
+        <Text style={styles.messageTime}>
+          {mine ? "Tú · " : ""}
+          {formatTime(item.createdAt || item._creationTime)}
+        </Text>
       </View>
     </View>
   );
@@ -105,34 +70,83 @@ function MessageBubble({ item }) {
 export default function ChatPrototypeScreen() {
   const listRef = useRef(null);
 
-  const [roomId, setRoomId] = useState("centro-comercial");
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const currentRoom = useMemo(
-    () => ROOMS.find((room) => room.id === roomId),
-    [roomId]
+  const currentUser = useQuery(api.users.current);
+  const messages = useQuery(api.chat.listMessages, {
+    room: DEMO_STORE.id,
+  });
+  const sendMessage = useMutation(api.chat.sendMessage);
+
+  const currentUserId = currentUser?._id ? String(currentUser._id) : null;
+
+  const displayAlias = useMemo(() => {
+    return (
+      currentUser?.profile?.alias ||
+      currentUser?.name ||
+      currentUser?.email ||
+      "Usuario"
+    );
+  }, [currentUser]);
+
+  const canSend = text.trim().length > 0 && !sending && currentUser !== null;
+
+  const handleSend = useCallback(async () => {
+    const cleanText = text.trim();
+
+    if (!cleanText || sending) return;
+
+    if (!currentUser) {
+      safeAlert(
+        "Usuario no autenticado",
+        "Debes iniciar sesión para participar en el chat de la tienda.",
+      );
+      return;
+    }
+
+    if (cleanText.length > MAX_MESSAGE_LENGTH) {
+      safeAlert(
+        "Mensaje demasiado largo",
+        `El mensaje no puede superar ${MAX_MESSAGE_LENGTH} caracteres.`,
+      );
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      await sendMessage({
+        room: DEMO_STORE.id,
+        username: displayAlias,
+        text: cleanText,
+      });
+
+      setText("");
+
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd?.({ animated: true });
+      });
+    } catch (error) {
+      console.error("[ChatPrototypeScreen] sendMessage failed", error);
+      safeAlert(
+        "No se pudo enviar",
+        error?.message || "No se pudo enviar el mensaje.",
+      );
+    } finally {
+      setSending(false);
+    }
+  }, [currentUser, displayAlias, sendMessage, sending, text]);
+
+  const renderItem = useCallback(
+    ({ item }) => {
+      const mine =
+        Boolean(currentUserId) && String(item.userId || "") === currentUserId;
+
+      return <MessageBubble item={item} mine={mine} />;
+    },
+    [currentUserId],
   );
-
-  const sendMessage = () => {
-    const value = text.trim();
-    if (!value) return;
-
-    const nextMessage = {
-      id: `local-${Date.now()}`,
-      alias: "Tú",
-      text: value,
-      createdAt: Date.now(),
-      mine: true,
-    };
-
-    setMessages((current) => [...current, nextMessage]);
-    setText("");
-
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd?.({ animated: true });
-    });
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -142,29 +156,29 @@ export default function ChatPrototypeScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <View style={styles.header}>
-          <View style={styles.headerTitleRow}>
-            <View style={styles.placeIcon}>
-              <Ionicons name="storefront-outline" size={20} color="#111827" />
-            </View>
-
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Chat de compras</Text>
-              <Text style={styles.subtitle}>
-                {currentRoom?.label ?? "Sala"} · mensajes temporales
-              </Text>
-            </View>
+          <View style={styles.placeIcon}>
+            <Ionicons name="storefront-outline" size={22} color="#1D4ED8" />
           </View>
 
-          <RoomSelector value={roomId} onChange={setRoomId} />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{DEMO_STORE.name}</Text>
+            <Text style={styles.subtitle}>
+              {DEMO_STORE.address} · chat temporal de la tienda
+            </Text>
+          </View>
+
+          <View style={styles.devBadge}>
+            <Text style={styles.devBadgeText}>DEV</Text>
+          </View>
         </View>
 
         <FlatList
           ref={listRef}
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <MessageBubble item={item} />}
+          data={Array.isArray(messages) ? messages : []}
+          keyExtractor={(item) => String(item._id)}
+          renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() =>
             listRef.current?.scrollToEnd?.({ animated: false })
@@ -177,35 +191,52 @@ export default function ChatPrototypeScreen() {
                 color="#4B5563"
               />
               <Text style={styles.noticeText}>
+                Esta es una única tienda de prueba. Todo usuario autenticado que
+                abra este prototipo verá los mismos mensajes en tiempo real.
                 Comparte precios, ofertas, disponibilidad o dónde encontrar un
-                producto. Los vídeos de YouTube se gestionarán en otra pantalla.
+                producto.
               </Text>
             </View>
+          }
+          ListEmptyComponent={
+            messages === undefined ? (
+              <Text style={styles.emptyText}>Cargando mensajes…</Text>
+            ) : (
+              <Text style={styles.emptyText}>
+                Todavía no hay mensajes en esta tienda.
+              </Text>
+            )
           }
         />
 
         <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Escribe un mensaje…"
-            placeholderTextColor="#9CA3AF"
-            multiline
-            maxLength={500}
-            returnKeyType="send"
-            blurOnSubmit={false}
-            onSubmitEditing={sendMessage}
-            accessibilityLabel="Mensaje"
-          />
+          <View style={styles.inputBlock}>
+            <TextInput
+              style={styles.input}
+              value={text}
+              onChangeText={setText}
+              placeholder="Escribe un mensaje para esta tienda…"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              maxLength={MAX_MESSAGE_LENGTH}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              onSubmitEditing={handleSend}
+              accessibilityLabel="Mensaje para el chat de la tienda"
+            />
+
+            <Text style={styles.counter}>
+              {text.length}/{MAX_MESSAGE_LENGTH}
+            </Text>
+          </View>
 
           <Pressable
-            onPress={sendMessage}
-            disabled={!text.trim()}
+            onPress={handleSend}
+            disabled={!canSend}
             style={({ pressed }) => [
               styles.sendButton,
-              !text.trim() && styles.sendButtonDisabled,
-              pressed && text.trim() && styles.sendButtonPressed,
+              !canSend && styles.sendButtonDisabled,
+              pressed && canSend && styles.sendButtonPressed,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Enviar mensaje"
@@ -225,74 +256,59 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#F4F5F7",
+    backgroundColor: "#F4F7FB",
   },
   header: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#D1D5DB",
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  headerTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
   },
   placeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    marginRight: 11,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F3F4F6",
-    marginRight: 10,
+    backgroundColor: "#EAF2FF",
+    borderRadius: 13,
   },
   headerText: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "700",
-    color: "#111827",
+    color: "#172033",
+    fontSize: 17,
+    fontWeight: "800",
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: 3,
+    color: "#667085",
     fontSize: 12,
-    color: "#6B7280",
   },
-  roomSelector: {
-    flexDirection: "row",
-    gap: 6,
+  devBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    backgroundColor: "#FFF1E7",
+    borderRadius: 8,
   },
-  roomButton: {
-    flex: 1,
-    minHeight: 34,
-    paddingHorizontal: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#FFFFFF",
-  },
-  roomButtonActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  roomButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#4B5563",
-  },
-  roomButtonTextActive: {
-    color: "#FFFFFF",
+  devBadgeText: {
+    color: "#C2410C",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.4,
   },
   list: {
     flex: 1,
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: 12,
     paddingTop: 12,
     paddingBottom: 16,
@@ -301,17 +317,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    padding: 10,
+    padding: 11,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
     backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E4E7EC",
+    borderRadius: 14,
   },
   noticeText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
     color: "#4B5563",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  emptyText: {
+    marginTop: 26,
+    color: "#667085",
+    fontSize: 13,
+    textAlign: "center",
   },
   messageRow: {
     marginBottom: 8,
@@ -323,36 +346,37 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   messageBubble: {
-    maxWidth: "82%",
+    maxWidth: "84%",
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 6,
     borderWidth: 1,
+    borderRadius: 15,
   },
   messageBubbleMine: {
-    backgroundColor: "#DCFCE7",
-    borderColor: "#BBF7D0",
+    backgroundColor: "#EAF2FF",
+    borderColor: "#BFDBFE",
   },
   messageBubbleOther: {
     backgroundColor: "#FFFFFF",
-    borderColor: "#E5E7EB",
+    borderColor: "#E4E7EC",
   },
   alias: {
     marginBottom: 3,
-    fontSize: 12,
-    fontWeight: "700",
     color: "#2563EB",
+    fontSize: 12,
+    fontWeight: "800",
   },
   messageText: {
+    color: "#172033",
     fontSize: 15,
     lineHeight: 20,
-    color: "#111827",
   },
   messageTime: {
-    marginTop: 4,
+    marginTop: 5,
     alignSelf: "flex-end",
+    color: "#667085",
     fontSize: 10,
-    color: "#6B7280",
   },
   composer: {
     flexDirection: "row",
@@ -364,30 +388,42 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#D1D5DB",
   },
-  input: {
+  inputBlock: {
     flex: 1,
+  },
+  input: {
     minHeight: 42,
     maxHeight: 110,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingTop: Platform.OS === "ios" ? 10 : 8,
     paddingBottom: Platform.OS === "ios" ? 10 : 8,
+    color: "#172033",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 13,
     fontSize: 15,
-    color: "#111827",
+  },
+  counter: {
+    marginTop: 3,
+    marginRight: 3,
+    alignSelf: "flex-end",
+    color: "#98A2B3",
+    fontSize: 9,
   },
   sendButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
+    marginBottom: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#2563EB",
+    borderRadius: 13,
   },
   sendButtonDisabled: {
     opacity: 0.35,
   },
   sendButtonPressed: {
-    opacity: 0.8,
+    opacity: 0.82,
   },
 });
