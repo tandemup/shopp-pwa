@@ -227,21 +227,17 @@ function QuickActions({
         onPress: () =>
           navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.PARKING_SCREEN),
       },
-      ...(__DEV__
-        ? [
-            {
-              key: "chatPrototype",
-              label: "Chat prototipo",
-              description: "Prueba el nuevo chat de compras",
-              icon: "chatbubbles-outline",
-              iconColor: COLORS.orange,
-              iconBackground: COLORS.orangeSoft,
-              badgeLabel: "DEV",
-              onPress: () =>
-                navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.CHAT_PROTOTYPE),
-            },
-          ]
-        : []),
+      {
+        key: "chatPrototype",
+        label: "Chat prototipo",
+        description: "Prueba el nuevo chat de compras",
+        icon: "chatbubbles-outline",
+        iconColor: COLORS.orange,
+        iconBackground: COLORS.orangeSoft,
+        badgeLabel: "DEV",
+        onPress: () =>
+          navigateToNestedRoute(ROUTES.CHAT_TAB, ROUTES.CHAT_PROTOTYPE),
+      },
       ...(isAdmin
         ? [
             {
