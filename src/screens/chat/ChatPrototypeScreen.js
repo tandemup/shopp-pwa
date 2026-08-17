@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -10,18 +10,37 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
+import * as Location from "expo-location";
 
 import { api } from "@/convex/_generated/api";
 import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
 import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 
 const DEMO_STORE = {
-  id: "store-demo-001",
-  name: "Supermercado demo",
-  address: "Tienda de prueba",
+  id: "carrefour-los-fresnos",
+  name: "Carrefour Los Fresnos",
+  address: "Centro Comercial Los Fresnos, 33206 Gijón",
+  radiusMeters: 300,
+  latitude: 43.53263,
+  longitude: -5.661265,
 };
 
-const MAX_MESSAGE_LENGTH = 500;
+const MAX_MESSAGE_LENGTH = 280;
+
+function distanceToStoreMeters(latitude, longitude) {
+  const toRadians = value => (value * Math.PI) / 180;
+  const earthRadiusMeters = 6371000;
+  const deltaLatitude = toRadians(DEMO_STORE.latitude - latitude);
+  const deltaLongitude = toRadians(DEMO_STORE.longitude - longitude);
+  const latitude1 = toRadians(latitude);
+  const latitude2 = toRadians(DEMO_STORE.latitude);
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(latitude1) *
+      Math.cos(latitude2) *
+      Math.sin(deltaLongitude / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function formatTime(timestamp) {
   if (!timestamp) return "";
@@ -72,11 +91,54 @@ export default function ChatPrototypeScreen() {
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [locationState, setLocationState] = useState("checking");
+
+  const checkLocation = useCallback(async () => {
+    setLocationState("checking");
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setLocation(null);
+        setLocationState("denied");
+        return null;
+      }
+      const result = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const nextLocation = {
+        latitude: result.coords.latitude,
+        longitude: result.coords.longitude,
+      };
+      const nearby =
+        distanceToStoreMeters(nextLocation.latitude, nextLocation.longitude) <=
+        DEMO_STORE.radiusMeters;
+      setLocation(nextLocation);
+      setLocationState(nearby ? "ready" : "outside");
+      return nearby ? nextLocation : null;
+    } catch (error) {
+      console.error("[ChatPrototypeScreen] location failed", error);
+      setLocation(null);
+      setLocationState("error");
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    checkLocation();
+  }, [checkLocation]);
 
   const currentUser = useQuery(api.users.current);
-  const messages = useQuery(api.chat.listMessages, {
-    room: DEMO_STORE.id,
-  });
+  const messages = useQuery(
+    api.chat.listMessages,
+    location && locationState === "ready"
+      ? {
+          room: DEMO_STORE.id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        }
+      : "skip",
+  );
   const sendMessage = useMutation(api.chat.sendMessage);
 
   const currentUserId = currentUser?._id ? String(currentUser._id) : null;
@@ -90,7 +152,11 @@ export default function ChatPrototypeScreen() {
     );
   }, [currentUser]);
 
-  const canSend = text.trim().length > 0 && !sending && currentUser !== null;
+  const canSend =
+    text.trim().length > 0 &&
+    !sending &&
+    currentUser !== null &&
+    locationState === "ready";
 
   const handleSend = useCallback(async () => {
     const cleanText = text.trim();
@@ -116,10 +182,16 @@ export default function ChatPrototypeScreen() {
     setSending(true);
 
     try {
+      const currentLocation = await checkLocation();
+      if (!currentLocation) {
+        throw new Error("No se pudo comprobar que estás cerca de la tienda.");
+      }
       await sendMessage({
         room: DEMO_STORE.id,
         username: displayAlias,
         text: cleanText,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
       });
 
       setText("");
@@ -136,7 +208,7 @@ export default function ChatPrototypeScreen() {
     } finally {
       setSending(false);
     }
-  }, [currentUser, displayAlias, sendMessage, sending, text]);
+  }, [checkLocation, currentUser, displayAlias, sendMessage, sending, text]);
 
   const renderItem = useCallback(
     ({ item }) => {
@@ -163,7 +235,7 @@ export default function ChatPrototypeScreen() {
           <View style={styles.headerText}>
             <Text style={styles.title}>{DEMO_STORE.name}</Text>
             <Text style={styles.subtitle}>
-              {DEMO_STORE.address} · chat temporal de la tienda
+              {DEMO_STORE.address} · radio de {DEMO_STORE.radiusMeters} m
             </Text>
           </View>
 
@@ -191,11 +263,21 @@ export default function ChatPrototypeScreen() {
                 color="#4B5563"
               />
               <Text style={styles.noticeText}>
-                Esta es una única tienda de prueba. Todo usuario autenticado que
-                abra este prototipo verá los mismos mensajes en tiempo real.
-                Comparte precios, ofertas, disponibilidad o dónde encontrar un
-                producto.
+                {locationState === "checking"
+                  ? "Comprobando si estás cerca de la tienda…"
+                  : locationState === "denied"
+                    ? "Activa el permiso de ubicación para acceder a este chat."
+                    : locationState === "error"
+                      ? "No se pudo obtener tu ubicación. Pulsa para intentarlo de nuevo."
+                      : locationState === "outside"
+                        ? "Estás fuera del radio de 300 metros de Carrefour Los Fresnos."
+                      : "El chat solo está disponible para personas situadas cerca de Carrefour Los Fresnos."}
               </Text>
+              {locationState !== "ready" && locationState !== "checking" ? (
+                <Pressable onPress={checkLocation} style={styles.retryButton}>
+                  <Text style={styles.retryButtonText}>Reintentar</Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           ListEmptyComponent={
@@ -257,6 +339,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F4F7FB",
+  },
+  retryButton: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#DBEAFE",
+  },
+  retryButtonText: {
+    color: "#1D4ED8",
+    fontWeight: "700",
   },
   header: {
     minHeight: 72,

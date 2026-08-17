@@ -7,6 +7,43 @@ const DEFAULT_USERNAME = "anonymous";
 const MAX_MESSAGE_LENGTH = 280;
 const MAX_USERNAME_LENGTH = 40;
 const MESSAGE_TTL_MS = 24 * 60 * 60 * 1000;
+const CARREFOUR_LOS_FRESNOS = {
+  room: "carrefour-los-fresnos",
+  latitude: 43.53263,
+  longitude: -5.661265,
+  radiusMeters: 300,
+};
+
+function distanceMeters(latitude, longitude, targetLatitude, targetLongitude) {
+  const toRadians = value => (value * Math.PI) / 180;
+  const earthRadiusMeters = 6371000;
+  const deltaLatitude = toRadians(targetLatitude - latitude);
+  const deltaLongitude = toRadians(targetLongitude - longitude);
+  const latitude1 = toRadians(latitude);
+  const latitude2 = toRadians(targetLatitude);
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(latitude1) *
+      Math.cos(latitude2) *
+      Math.sin(deltaLongitude / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function requireNearbyStore(room, latitude, longitude) {
+  if (room !== CARREFOUR_LOS_FRESNOS.room) return;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error("Necesitamos tu ubicación para acceder a este chat.");
+  }
+  const distance = distanceMeters(
+    latitude,
+    longitude,
+    CARREFOUR_LOS_FRESNOS.latitude,
+    CARREFOUR_LOS_FRESNOS.longitude,
+  );
+  if (distance > CARREFOUR_LOS_FRESNOS.radiusMeters) {
+    throw new Error("Este chat solo está disponible cerca de Carrefour Los Fresnos.");
+  }
+}
 
 function cleanRoom(value) {
   return String(value || "").trim().toLowerCase().slice(0, 50) || DEFAULT_ROOM;
@@ -19,9 +56,17 @@ function cleanText(value) {
 }
 
 export const listMessages = query({
-  args: { room: v.optional(v.string()), limit: v.optional(v.number()) },
+  args: {
+    room: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Debes iniciar sesión para acceder al chat.");
     const room = cleanRoom(args.room);
+    requireNearbyStore(room, args.latitude, args.longitude);
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 200);
     const now = Date.now();
     const messages = await ctx.db.query("chatMessages").withIndex("by_room_createdAt", q => q.eq("room", room)).order("desc").take(limit);
@@ -30,9 +75,18 @@ export const listMessages = query({
 });
 
 export const sendMessage = mutation({
-  args: { room: v.optional(v.string()), username: v.optional(v.string()), text: v.string() },
+  args: {
+    room: v.optional(v.string()),
+    username: v.optional(v.string()),
+    text: v.string(),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Debes iniciar sesión para participar en el chat.");
     const room = cleanRoom(args.room);
+    requireNearbyStore(room, args.latitude, args.longitude);
     const username = cleanUsername(args.username);
     const text = cleanText(args.text);
     if (!text) throw new Error("El mensaje no puede estar vacío.");
