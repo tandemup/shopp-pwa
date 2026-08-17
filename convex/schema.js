@@ -136,6 +136,26 @@ export default defineSchema({
     room: v.string(),
     text: v.string(),
     username: v.string(),
+    images: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          mimeType: v.string(),
+          width: v.float64(),
+          height: v.float64(),
+          size: v.float64(),
+        }),
+      ),
+    ),
+    product: v.optional(
+      v.object({
+        barcode: v.string(),
+        name: v.string(),
+        brand: v.optional(v.string()),
+        price: v.float64(),
+        currency: v.string(),
+      }),
+    ),
     createdAt: v.float64(),
 
     status: v.optional(
