@@ -521,7 +521,19 @@ Object.assign(EN, {
   "Añadir usuarios": "Add users",
   "Compartir room": "Share room",
   "Notificaciones": "Notifications",
-  "Salir del room": "Leave room"
+  "Salir del room": "Leave room",
+  "Ocultar": "Hide",
+  "Username": "Username",
+  "anonymous": "anonymous",
+  "general": "general",
+  "familia": "family",
+  "trabajo": "work",
+  "compras": "shopping",
+  "Todavía no hay mensajes en esta room.": "There are no messages in this room yet.",
+  "¿Qué está pasando en la compra?": "What is happening with the shopping?",
+  "Se permiten enlaces http:// y https://": "http:// and https:// links are allowed",
+  "No se pudo enviar el mensaje.": "The message could not be sent.",
+  "Post": "Post"
 });
 
 export function tr(value, language = activeLanguage) {

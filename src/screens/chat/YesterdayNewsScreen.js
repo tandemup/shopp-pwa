@@ -10,7 +10,7 @@ import {
   StyleSheet,
   View
 } from "react-native";
-import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+import { I18nText as Text, I18nTextInput as TextInput, tr, useI18n } from "@/src/i18n";
 
 import { Audio } from "expo-av";
 import moment from "moment";
@@ -26,12 +26,11 @@ const ROOM_OPTIONS = ["general", "familia", "trabajo", "compras"];
 const MAX_POST_LENGTH = 280;
 const LOW_CHARS_WARNING = 30;
 
-moment.locale("es");
-
 export default function ChatScreen({
   room = DEFAULT_ROOM,
   username = DEFAULT_USERNAME,
 }) {
+  const { language } = useI18n();
   const [activeRoom, setActiveRoom] = useState(room || DEFAULT_ROOM);
   const [activeUsername, setActiveUsername] = useState(
     username || DEFAULT_USERNAME,
@@ -110,7 +109,9 @@ export default function ChatScreen({
 
     if (cleanText.length > MAX_POST_LENGTH) {
       setErrorMessage(
-        `El mensaje supera el límite de ${MAX_POST_LENGTH} caracteres.`,
+        language === "en"
+          ? `The message exceeds the ${MAX_POST_LENGTH}-character limit.`
+          : `El mensaje supera el límite de ${MAX_POST_LENGTH} caracteres.`,
       );
       return;
     }
@@ -132,7 +133,7 @@ export default function ChatScreen({
     } catch (error) {
       console.error("Error enviando mensaje con Convex:", error);
       setText(cleanText);
-      setErrorMessage(error?.message || "No se pudo enviar el mensaje.");
+      setErrorMessage(tr(error?.message || "No se pudo enviar el mensaje.", language));
     } finally {
       setSending(false);
     }
@@ -160,7 +161,7 @@ export default function ChatScreen({
       return "";
     }
 
-    const date = moment(createdAt);
+    const date = moment(createdAt).locale(language === "en" ? "en" : "es");
 
     if (!date.isValid()) {
       return "";
@@ -232,7 +233,7 @@ export default function ChatScreen({
             selected && styles.roomButtonTextSelected,
           ]}
         >
-          {roomName}
+          {tr(roomName, language)}
         </Text>
       </Pressable>
     );
@@ -276,7 +277,8 @@ export default function ChatScreen({
                   <Text style={styles.title}>Chat</Text>
 
                   <Text style={styles.subtitle}>
-                    Room: {activeRoom} · Usuario:{" "}
+                    {language === "en" ? "Room" : "Room"}: {tr(activeRoom, language)} ·{" "}
+                    {language === "en" ? "User" : "Usuario"}:{" "}
                     {activeUsername.trim() || DEFAULT_USERNAME}
                   </Text>
                 </View>
@@ -289,7 +291,7 @@ export default function ChatScreen({
                   ]}
                 >
                   <Text style={styles.settingsToggleButtonText}>
-                    {showSettingsPanel ? "Ocultar" : "Ajustes"}
+                    {showSettingsPanel ? tr("Ocultar", language) : tr("Ajustes", language)}
                   </Text>
                 </Pressable>
               </View>
