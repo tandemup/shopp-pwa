@@ -21,6 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 
 const ROOMS = [
   { id: "compras", label: "Compras", icon: "cart-outline" },
@@ -31,6 +32,27 @@ const ROOMS = [
 ];
 const MAX_MESSAGE_LENGTH = 280;
 const MAX_IMAGES = 8;
+const CHAT_CLIENT_ID_KEY = "shopp-chat-client-id";
+
+function createChatClientId() {
+  if (typeof globalThis?.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `client-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getOrCreateChatClientId() {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage?.getItem(CHAT_CLIENT_ID_KEY);
+      if (saved?.trim()) return saved.trim();
+      const next = createChatClientId();
+      window.localStorage?.setItem(CHAT_CLIENT_ID_KEY, next);
+      return next;
+    } catch {}
+  }
+  return createChatClientId();
+}
 function createDefaultAlias() {
   if (Platform.OS === "web" && typeof window !== "undefined") {
     const saved = window.localStorage?.getItem("shopp-chat-alias");
@@ -71,8 +93,9 @@ function formatTime(timestamp, language = "es") {
   }
 }
 
-function Message({ item, myAlias, language }) {
-  const mine = item.username === myAlias;
+function Message({ item, myAlias, language, onDelete, deleting }) {
+  const mine = item.isOwnMessage === true;
+  const deletedForUsers = item.isDeletedByUser === true;
   const timestamp = item.createdAt || item._creationTime;
   const content = {
     text: item.text || "",
@@ -82,13 +105,51 @@ function Message({ item, myAlias, language }) {
   };
   return (
     <View style={[styles.messageRow, mine && styles.messageRowMine]}>
-      <View style={[styles.bubble, mine && styles.bubbleMine]}>
+      <View
+        style={[
+          styles.bubble,
+          mine && styles.bubbleMine,
+          deletedForUsers && styles.bubbleDeletedAdmin,
+        ]}
+      >
         <View style={styles.messageHeader}>
           <Text style={styles.username} numberOfLines={1}>
             {item.username || "anonymous"}
           </Text>
-          <Text style={styles.time}>{formatTime(timestamp, language)}</Text>
+
+          <View style={styles.messageHeaderActions}>
+            <Text style={styles.time}>{formatTime(timestamp, language)}</Text>
+
+            {item.canDelete === true ? (
+              <Pressable
+                onPress={() => onDelete?.(item)}
+                disabled={deleting}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.deleteMessageButton,
+                  pressed && styles.deleteMessageButtonPressed,
+                  deleting && styles.deleteMessageButtonDisabled,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  language === "en" ? "Delete post" : "Borrar publicación"
+                }
+              >
+                <Ionicons name="trash-outline" size={15} color="#dc2626" />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
+        {deletedForUsers ? (
+          <View style={styles.deletedAdminNotice}>
+            <Ionicons name="eye-outline" size={13} color="#92400e" />
+            <Text style={styles.deletedAdminNoticeText}>
+              {language === "en"
+                ? "Deleted by the author · visible only to administrators"
+                : "Borrado por el autor · visible solo para administradores"}
+            </Text>
+          </View>
+        ) : null}
         {content.images.length ? (
           <View style={styles.messageImagesPanel}>
             {content.images.map((uri, index) => (
@@ -124,13 +185,16 @@ export default function ChatScreen() {
   const listRef = useRef(null);
   const { language } = useI18n();
   const [room, setRoom] = useState("compras");
+  const [chatClientId] = useState(getOrCreateChatClientId);
   const [alias, setAlias] = useState(createDefaultAlias);
   const [input, setInput] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
   const [sending, setSending] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
 
-  const messages = useQuery(api.chat.listMessages, { room });
+  const messages = useQuery(api.chat.listMessages, { room, clientId: chatClientId });
   const sendMessage = useMutation(api.chat.sendMessage);
+  const deleteMessage = useMutation(api.chat.deleteMessage);
   const generateImageUploadUrl = useMutation(api.chat.generateImageUploadUrl);
 
   const visibleMessages = useMemo(() => {
@@ -256,6 +320,7 @@ export default function ChatScreen() {
         room,
         username: cleanAlias,
         text: cleanInput,
+        clientId: chatClientId,
         images: uploadedImages.length ? uploadedImages : undefined,
       });
 
@@ -277,10 +342,68 @@ export default function ChatScreen() {
     cleanAlias,
     cleanInput,
     room,
+    chatClientId,
     selectedImages,
     sendMessage,
     generateImageUploadUrl,
   ]);
+
+
+  const deletePost = useCallback(
+    async (item) => {
+      const messageId = item?._id;
+      if (!messageId || deletingMessageId) return;
+
+      setDeletingMessageId(messageId);
+
+      try {
+        await deleteMessage({ messageId, clientId: chatClientId });
+      } catch (error) {
+        console.error("[Chat] No se pudo borrar el post:", error);
+
+        const message =
+          error?.message ||
+          (language === "en"
+            ? "The post could not be deleted."
+            : "No se pudo borrar la publicación.");
+
+        safeAlert(
+          language === "en" ? "Error" : "Error",
+          message,
+        );
+      } finally {
+        setDeletingMessageId(null);
+      }
+    },
+    [deleteMessage, deletingMessageId, language, chatClientId],
+  );
+
+  const handleDeletePost = useCallback(
+    (item) => {
+      if (!item?._id || deletingMessageId) return;
+
+      const title = language === "en" ? "Delete post" : "Borrar publicación";
+      const message =
+        language === "en"
+          ? "Delete this post? It will disappear for users but remain available to administrators."
+          : "¿Quieres borrar esta publicación? Desaparecerá para los usuarios, pero seguirá disponible para los administradores.";
+
+      safeAlert(title, message, [
+        {
+          key: "cancel",
+          text: language === "en" ? "Cancel" : "Cancelar",
+          style: "cancel",
+        },
+        {
+          key: "delete",
+          text: language === "en" ? "Delete" : "Borrar",
+          style: "destructive",
+          onPress: () => void deletePost(item),
+        },
+      ]);
+    },
+    [deletePost, deletingMessageId, language],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -352,7 +475,13 @@ export default function ChatScreen() {
           data={visibleMessages}
           keyExtractor={(item) => String(item._id || item.id)}
           renderItem={({ item }) => (
-            <Message item={item} myAlias={cleanAlias} language={language} />
+            <Message
+              item={item}
+              myAlias={cleanAlias}
+              language={language}
+              onDelete={handleDeletePost}
+              deleting={deletingMessageId === item._id}
+            />
           )}
           style={styles.list}
           contentContainerStyle={[
@@ -551,12 +680,48 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   bubbleMine: { backgroundColor: "#dbeafe", borderColor: "#bfdbfe" },
+  bubbleDeletedAdmin: {
+    opacity: 0.72,
+    borderStyle: "dashed",
+    borderColor: "#d97706",
+    backgroundColor: "#fffbeb",
+  },
+  deletedAdminNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 6,
+  },
+  deletedAdminNoticeText: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#92400e",
+  },
   messageHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
     marginBottom: 4,
+  },
+  messageHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  deleteMessageButton: {
+    width: 27,
+    height: 27,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+  },
+  deleteMessageButtonPressed: {
+    backgroundColor: "#fee2e2",
+  },
+  deleteMessageButtonDisabled: {
+    opacity: 0.4,
   },
   username: {
     flexShrink: 1,
