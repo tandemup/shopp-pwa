@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
   View
 } from "react-native";
-import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+import { I18nText as Text, I18nTextInput as TextInput, tr, useI18n } from "@/src/i18n";
 
 
 import { Audio } from "expo-av";
@@ -56,13 +56,12 @@ const CONNECTED_USERS = [
   { id: "luis", name: "Luis", label: "", color: "#C9DAF8" },
 ];
 
-moment.locale("es");
-
 export default function ChatScreenResponsive({
   room = DEFAULT_ROOM,
   username = DEFAULT_USERNAME,
 }) {
   const { width } = useWindowDimensions();
+  const { language } = useI18n();
 
   const isDesktop = width >= 900;
   const isTablet = width >= 700 && width < 900;
@@ -428,11 +427,13 @@ function DesktopChatHeader({ activeRoom, username }) {
   );
 }
 
-function MessageBubble({ message, isMine, now }) {
+function MessageBubble({ message, isMine, now, language: languageProp }) {
+  const { language: contextLanguage } = useI18n();
+  const language = languageProp || contextLanguage;
   const initial = getInitial(message.username);
   const createdAt = message.createdAt ?? message._creationTime;
 
-  const elapsedTime = formatElapsedTime(createdAt, now);
+  const elapsedTime = formatElapsedTime(createdAt, now, language);
   const clockTime = formatClockTime(createdAt);
 
   return (
@@ -448,7 +449,7 @@ function MessageBubble({ message, isMine, now }) {
       >
         <View style={styles.messageMetaRow}>
           <Text style={[styles.messageUser, isMine && styles.messageUserMine]}>
-            {isMine ? "Tú" : message.username || DEFAULT_USERNAME}
+            {isMine ? (language === "en" ? "You" : "Tú") : message.username || DEFAULT_USERNAME}
           </Text>
 
           <View style={styles.messageTimeBlock}>
@@ -506,6 +507,7 @@ function Composer({ value, onChangeText, onSend, isDesktop, sending }) {
 }
 
 function RoomDetails({ activeRoom }) {
+  const { language } = useI18n();
   return (
     <View style={styles.detailsPanel}>
       <Text style={styles.detailsTitle}>Detalles del room</Text>
@@ -544,7 +546,7 @@ function RoomDetails({ activeRoom }) {
             <View>
               <Text style={styles.connectedUserName}>
                 {user.name}
-                {user.label ? ` (${user.label})` : ""}
+                {user.label ? ` (${tr(user.label, language)})` : ""}
               </Text>
 
               <View style={styles.onlineRow}>
@@ -595,12 +597,12 @@ function getInitial(value) {
     .toUpperCase();
 }
 
-function formatElapsedTime(createdAt, now) {
+function formatElapsedTime(createdAt, now, language = "es") {
   if (!createdAt) {
     return "";
   }
 
-  const date = moment(createdAt);
+  const date = moment(createdAt).locale(language === "en" ? "en" : "es");
 
   if (!date.isValid()) {
     return "";

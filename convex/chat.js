@@ -1,5 +1,5 @@
 // convex/chat.js
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const DEFAULT_ROOM = "compras";
@@ -93,6 +93,15 @@ export const sendMessage = mutation({
         }),
       ),
     ),
+    product: v.optional(
+      v.object({
+        barcode: v.string(),
+        name: v.string(),
+        brand: v.optional(v.string()),
+        price: v.number(),
+        currency: v.string(),
+      }),
+    ),
     latitude: v.optional(v.number()),
     longitude: v.optional(v.number()),
   },
@@ -117,6 +126,7 @@ export const sendMessage = mutation({
       username,
       text,
       images: images.length > 0 ? images : undefined,
+      product: args.product,
       createdAt: now,
       expiresAt: now + MESSAGE_TTL_MS,
       status: "visible",
@@ -126,7 +136,7 @@ export const sendMessage = mutation({
   },
 });
 
-export const deleteExpiredMessages = mutation({
+export const deleteExpiredMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();

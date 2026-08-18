@@ -80,7 +80,7 @@ export default function ChatStack() {
         name={ROUTES.CHAT_PROTOTYPE}
         component={ChatPrototypeScreen}
         options={{
-          title: "Chat de compras",
+          title: tr("Chat de compras"),
         }}
       />
     </Stack.Navigator>

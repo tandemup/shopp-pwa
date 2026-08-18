@@ -1,6 +1,7 @@
 // src/screens/ChatScreen.js
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, View } from "react-native";
+import { I18nText as Text, I18nTextInput as TextInput, useI18n } from "@/src/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -27,13 +28,19 @@ function saveAlias(alias) {
   try { window.localStorage?.setItem("shopp-chat-alias", alias); } catch {}
 }
 
-function formatTime(timestamp) {
+function formatTime(timestamp, language = "es") {
   if (!timestamp) return "";
-  try { return new Date(timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }); }
-  catch { return ""; }
+  try {
+    return new Date(timestamp).toLocaleTimeString(language === "en" ? "en-GB" : "es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
-function Message({ item, myAlias }) {
+function Message({ item, myAlias, language }) {
   const mine = item.username === myAlias;
   const timestamp = item.createdAt || item._creationTime;
   return (
@@ -41,7 +48,7 @@ function Message({ item, myAlias }) {
       <View style={[styles.bubble, mine && styles.bubbleMine]}>
         <View style={styles.messageHeader}>
           <Text style={styles.username} numberOfLines={1}>{item.username || "anonymous"}</Text>
-          <Text style={styles.time}>{formatTime(timestamp)}</Text>
+          <Text style={styles.time}>{formatTime(timestamp, language)}</Text>
         </View>
         <Text style={styles.messageText}>{item.text}</Text>
       </View>
@@ -51,6 +58,7 @@ function Message({ item, myAlias }) {
 
 export default function ChatScreen() {
   const listRef = useRef(null);
+  const { language } = useI18n();
   const [alias, setAlias] = useState(createDefaultAlias);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -97,7 +105,9 @@ export default function ChatScreen() {
             <View style={styles.iconBox}><Ionicons name="chatbubbles-outline" size={21} color="#2563eb" /></View>
             <View style={styles.titleBlock}>
               <Text style={styles.title}>Chat de compras</Text>
-              <Text style={styles.subtitle}>Sala abierta · #{ROOM}</Text>
+              <Text style={styles.subtitle}>
+                {language === "en" ? `Open room · #${ROOM}` : `Sala abierta · #${ROOM}`}
+              </Text>
             </View>
           </View>
           <View style={styles.aliasRow}>
@@ -110,7 +120,7 @@ export default function ChatScreen() {
           ref={listRef}
           data={visibleMessages}
           keyExtractor={(item) => String(item._id || item.id)}
-          renderItem={({ item }) => <Message item={item} myAlias={cleanAlias} />}
+          renderItem={({ item }) => <Message item={item} myAlias={cleanAlias} language={language} />}
           style={styles.list}
           contentContainerStyle={[styles.listContent, visibleMessages.length === 0 && styles.listEmpty]}
           keyboardShouldPersistTaps="handled"

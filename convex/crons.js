@@ -15,4 +15,10 @@ crons.interval(
   internal.temporaryProductImages.cleanupExpired,
 );
 
+crons.interval(
+  "eliminar mensajes de chat caducados",
+  { hours: 1 },
+  internal.chat.deleteExpiredMessages,
+);
+
 export default crons;

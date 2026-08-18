@@ -466,6 +466,64 @@ Object.assign(EN, {
   "‹ Volver a la lista": "‹ Back to list"
 });
 
+
+// Traducciones añadidas para las pantallas de chat incorporadas después de la
+// primera internacionalización. El español sigue siendo el idioma fuente.
+Object.assign(EN, {
+  "Chat de compras": "Shopping chat",
+  "Chat prototipo": "Chat prototype",
+  "Prueba el nuevo chat de compras": "Try the new shopping chat",
+  "Tú ·": "You ·",
+  "Usuario no autenticado": "User not signed in",
+  "Debes iniciar sesión para participar en el chat de la tienda.": "You must sign in to take part in the store chat.",
+  "Mensaje demasiado largo": "Message too long",
+  "No se pudo comprobar que estás cerca de la tienda.": "We couldn't verify that you are near the store.",
+  "No se pudo enviar": "Could not send",
+  "No se pudo enviar el mensaje.": "The message could not be sent.",
+  "No se pudo preparar la imagen": "Could not prepare image",
+  "No se pudo seleccionar, reducir o convertir la imagen a JPEG.": "The image could not be selected, resized, or converted to JPEG.",
+  "No se pudo subir una de las imágenes.": "One of the images could not be uploaded.",
+  "Precio no válido": "Invalid price",
+  "Introduce el precio pagado por el producto.": "Enter the price paid for the product.",
+  "Producto comprado": "Purchased product",
+  "No se pudo compartir": "Could not share",
+  "No se pudo publicar el producto.": "The product could not be posted.",
+  "Comprobando si estás cerca de la tienda…": "Checking whether you are near the store…",
+  "Activa el permiso de ubicación para acceder a este chat.": "Enable location permission to access this chat.",
+  "No se pudo obtener tu ubicación. Pulsa para intentarlo de nuevo.": "Your location could not be obtained. Tap to try again.",
+  "El chat solo está disponible para personas situadas cerca de Carrefour Los Fresnos.": "The chat is only available to people near Carrefour Los Fresnos.",
+  "Reintentar": "Try again",
+  "Cargando mensajes…": "Loading messages…",
+  "Todavía no hay mensajes en esta tienda.": "There are no messages in this store yet.",
+  "Precio pagado": "Price paid",
+  "Compartir": "Share",
+  "Quitar imagen": "Remove image",
+  "Añadir imagen": "Add image",
+  "Añade un comentario…": "Add a comment…",
+  "Mensaje": "Message",
+  "Mensaje para el chat de la tienda": "Message for the store chat",
+  "Enviar mensaje": "Send message",
+  "Sala abierta · #": "Open room · #",
+  "Tu alias": "Your alias",
+  "Conectando con Convex…": "Connecting to Convex…",
+  "Todavía no hay mensajes": "There are no messages yet",
+  "Abre Shopp en otro dispositivo y usa un alias diferente para probar la conversación en tiempo real.": "Open Shopp on another device and use a different alias to test the conversation in real time.",
+  "Escribe un mensaje…": "Write a message…",
+  "Pruebas abiertas · sin login obligatorio": "Open testing · sign-in not required",
+  "Tú": "You",
+  "tú": "you",
+  "Escribe mensaje...": "Write a message...",
+  "Detalles del room": "Room details",
+  "Conversaciones generales del grupo.": "General group conversations.",
+  "Usuarios conectados": "Connected users",
+  "En línea": "Online",
+  "Acciones rápidas": "Quick actions",
+  "Añadir usuarios": "Add users",
+  "Compartir room": "Share room",
+  "Notificaciones": "Notifications",
+  "Salir del room": "Leave room"
+});
+
 export function tr(value, language = activeLanguage) {
   if (language !== "en" || typeof value !== "string") return value;
   const normalized = value.replace(/\s+/g, " ").trim();

@@ -21,10 +21,9 @@ import { useMutation, useQuery } from "convex/react";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { BlurView } from "expo-blur";
 
 import { api } from "@/convex/_generated/api";
-import { I18nText as Text, I18nTextInput as TextInput } from "@/src/i18n";
+import { I18nText as Text, I18nTextInput as TextInput, tr, useI18n } from "@/src/i18n";
 import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 import QuickEan13Scanner from "@/src/components/features/scanner/QuickEan13Scanner";
 import { useProductLookupWithCache } from "@/src/hooks/useProductLookupWithCache";
@@ -55,11 +54,11 @@ function distanceToStoreMeters(latitude, longitude) {
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function formatTime(timestamp) {
+function formatTime(timestamp, language = "es") {
   if (!timestamp) return "";
 
   try {
-    return new Intl.DateTimeFormat("es-ES", {
+    return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "es-ES", {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(timestamp));
@@ -69,6 +68,7 @@ function formatTime(timestamp) {
 }
 
 function MessageBubble({ item, mine }) {
+  const { language } = useI18n();
   return (
     <View
       style={[
@@ -120,8 +120,8 @@ function MessageBubble({ item, mine }) {
         ) : null}
 
         <Text style={styles.messageTime}>
-          {mine ? "Tú · " : ""}
-          {formatTime(item.createdAt || item._creationTime)}
+          {mine ? (language === "en" ? "You · " : "Tú · ") : ""}
+          {formatTime(item.createdAt || item._creationTime, language)}
         </Text>
       </View>
     </View>
@@ -130,6 +130,7 @@ function MessageBubble({ item, mine }) {
 
 export default function ChatPrototypeScreen() {
   const listRef = useRef(null);
+  const { language } = useI18n();
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -199,17 +200,22 @@ export default function ChatPrototypeScreen() {
         const product = result?.product || {};
         setProductDraft({
           barcode,
-          name: String(product.name || "").trim() || `Producto ${barcode}`,
+          name: String(product.name || "").trim() ||
+            (language === "en" ? `Product ${barcode}` : `Producto ${barcode}`),
           brand: String(product.brand || "").trim(),
         });
         setProductPrice("");
       } catch (error) {
         console.error("[ChatPrototypeScreen] product lookup failed", error);
-        setProductDraft({ barcode, name: `Producto ${barcode}`, brand: "" });
+        setProductDraft({
+          barcode,
+          name: language === "en" ? `Product ${barcode}` : `Producto ${barcode}`,
+          brand: "",
+        });
         setProductPrice("");
       }
     },
-    [lookupWithCache],
+    [language, lookupWithCache],
   );
 
   const currentUserId = currentUser?._id ? String(currentUser._id) : null;
@@ -236,16 +242,18 @@ export default function ChatPrototypeScreen() {
 
     if (!currentUser) {
       safeAlert(
-        "Usuario no autenticado",
-        "Debes iniciar sesión para participar en el chat de la tienda.",
+        tr("Usuario no autenticado"),
+        tr("Debes iniciar sesión para participar en el chat de la tienda."),
       );
       return;
     }
 
     if (cleanText.length > MAX_MESSAGE_LENGTH) {
       safeAlert(
-        "Mensaje demasiado largo",
-        `El mensaje no puede superar ${MAX_MESSAGE_LENGTH} caracteres.`,
+        tr("Mensaje demasiado largo"),
+        language === "en"
+          ? `The message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`
+          : `El mensaje no puede superar ${MAX_MESSAGE_LENGTH} caracteres.`,
       );
       return;
     }
@@ -273,13 +281,13 @@ export default function ChatPrototypeScreen() {
     } catch (error) {
       console.error("[ChatPrototypeScreen] sendMessage failed", error);
       safeAlert(
-        "No se pudo enviar",
-        error?.message || "No se pudo enviar el mensaje.",
+        tr("No se pudo enviar"),
+        tr(error?.message || "No se pudo enviar el mensaje."),
       );
     } finally {
       setSending(false);
     }
-  }, [checkLocation, currentUser, displayAlias, sendMessage, sending, text]);
+  }, [checkLocation, currentUser, displayAlias, language, sendMessage, sending, text]);
 
   const renderItem = useCallback(
     ({ item }) => {
@@ -360,9 +368,11 @@ export default function ChatPrototypeScreen() {
     } catch (error) {
       console.error("[ChatPrototypeScreen] image picker failed", error);
       safeAlert(
-        "No se pudo preparar la imagen",
-        error?.message ||
-          "No se pudo seleccionar, reducir o convertir la imagen a JPEG.",
+        tr("No se pudo preparar la imagen"),
+        tr(
+          error?.message ||
+            "No se pudo seleccionar, reducir o convertir la imagen a JPEG.",
+        ),
       );
     }
   }, []);
@@ -382,16 +392,18 @@ export default function ChatPrototypeScreen() {
 
     if (!currentUser) {
       safeAlert(
-        "Usuario no autenticado",
-        "Debes iniciar sesión para participar en el chat de la tienda.",
+        tr("Usuario no autenticado"),
+        tr("Debes iniciar sesión para participar en el chat de la tienda."),
       );
       return;
     }
 
     if (cleanText.length > MAX_MESSAGE_LENGTH) {
       safeAlert(
-        "Mensaje demasiado largo",
-        `El mensaje no puede superar ${MAX_MESSAGE_LENGTH} caracteres.`,
+        tr("Mensaje demasiado largo"),
+        language === "en"
+          ? `The message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`
+          : `El mensaje no puede superar ${MAX_MESSAGE_LENGTH} caracteres.`,
       );
       return;
     }
@@ -452,8 +464,8 @@ export default function ChatPrototypeScreen() {
     } catch (error) {
       console.error("[ChatPrototypeScreen] send composer failed", error);
       safeAlert(
-        "No se pudo enviar",
-        error?.message || "No se pudo enviar el mensaje.",
+        tr("No se pudo enviar"),
+        tr(error?.message || "No se pudo enviar el mensaje."),
       );
     } finally {
       setSending(false);
@@ -463,6 +475,7 @@ export default function ChatPrototypeScreen() {
     currentUser,
     displayAlias,
     generateImageUploadUrl,
+    language,
     selectedImages,
     sendMessage,
     sending,
@@ -474,8 +487,8 @@ export default function ChatPrototypeScreen() {
     const price = Number(String(productPrice).replace(",", "."));
     if (!Number.isFinite(price) || price <= 0) {
       safeAlert(
-        "Precio no válido",
-        "Introduce el precio pagado por el producto.",
+        tr("Precio no válido"),
+        tr("Introduce el precio pagado por el producto."),
       );
       return;
     }
@@ -502,8 +515,8 @@ export default function ChatPrototypeScreen() {
       setProductPrice("");
     } catch (error) {
       safeAlert(
-        "No se pudo compartir",
-        error?.message || "No se pudo publicar el producto.",
+        tr("No se pudo compartir"),
+        tr(error?.message || "No se pudo publicar el producto."),
       );
     } finally {
       setSending(false);
@@ -532,7 +545,9 @@ export default function ChatPrototypeScreen() {
           <View style={styles.headerText}>
             <Text style={styles.title}>{DEMO_STORE.name}</Text>
             <Text style={styles.subtitle}>
-              chat cercano · radio de {DEMO_STORE.radiusMeters} m
+              {language === "en"
+                ? `nearby chat · ${DEMO_STORE.radiusMeters} m radius`
+                : `chat cercano · radio de ${DEMO_STORE.radiusMeters} m`}
             </Text>
           </View>
 
@@ -565,7 +580,9 @@ export default function ChatPrototypeScreen() {
                     : locationState === "error"
                       ? "No se pudo obtener tu ubicación. Pulsa para intentarlo de nuevo."
                       : locationState === "outside"
-                        ? `Estás fuera del radio de ${DEMO_STORE.radiusMeters} metros de Carrefour Los Fresnos.`
+                        ? language === "en"
+                          ? `You are outside the ${DEMO_STORE.radiusMeters}-metre radius of Carrefour Los Fresnos.`
+                          : `Estás fuera del radio de ${DEMO_STORE.radiusMeters} metros de Carrefour Los Fresnos.`
                         : "El chat solo está disponible para personas situadas cerca de Carrefour Los Fresnos."}
               </Text>
               {locationState !== "ready" && locationState !== "checking" ? (
@@ -619,12 +636,6 @@ export default function ChatPrototypeScreen() {
         ) : null}
 
         <View style={styles.composerShell}>
-          <BlurView
-            intensity={55}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
-
           {selectedImages.length > 0 ? (
             <FlatList
               horizontal
@@ -643,7 +654,7 @@ export default function ChatPrototypeScreen() {
                     onPress={() => removeSelectedImage(index)}
                     style={styles.selectedImageRemove}
                     accessibilityRole="button"
-                    accessibilityLabel="Quitar imagen"
+                    accessibilityLabel={tr("Quitar imagen")}
                   >
                     <Ionicons name="close" size={14} color="#FFFFFF" />
                   </Pressable>
@@ -657,7 +668,7 @@ export default function ChatPrototypeScreen() {
               onPress={handlePickImage}
               style={styles.mediaButton}
               accessibilityRole="button"
-              accessibilityLabel="Añadir imagen"
+              accessibilityLabel={tr("Añadir imagen")}
             >
               <Ionicons name="image-outline" size={24} color="#168AC0" />
             </Pressable>
@@ -676,7 +687,7 @@ export default function ChatPrototypeScreen() {
                 returnKeyType="send"
                 blurOnSubmit
                 onSubmitEditing={handleSendComposer}
-                accessibilityLabel="Mensaje para el chat de la tienda"
+                accessibilityLabel={tr("Mensaje para el chat de la tienda")}
               />
             </View>
 
@@ -700,7 +711,7 @@ export default function ChatPrototypeScreen() {
                 pressed && styles.sendButtonPressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Enviar mensaje"
+              accessibilityLabel={tr("Enviar mensaje")}
             >
               <Ionicons name="send" size={22} color="#168AC0" />
             </Pressable>
@@ -1002,11 +1013,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(51,65,85,0.92)",
   },
   composerShell: {
-    position: "relative",
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(220,232,241,0.92)",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.38)",
+    borderTopColor: "rgba(148,163,184,0.35)",
   },
   composer: {
     flexDirection: "row",
