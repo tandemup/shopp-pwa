@@ -24,13 +24,34 @@ import { api } from "@/convex/_generated/api";
 
 const ROOMS = [
   { id: "compras", label: "Compras", icon: "cart-outline" },
-  { id: "musica", label: "MÃºsica", icon: "musical-notes-outline" },
+  { id: "musica", label: "Música", icon: "musical-notes-outline" },
   { id: "humor", label: "Humor", icon: "happy-outline" },
-  { id: "informatica", label: "InformÃ¡tica", icon: "laptop-outline" },
+  { id: "informatica", label: "Informática", icon: "laptop-outline" },
   { id: "noticias", label: "Noticias", icon: "newspaper-outline" },
 ];
 const MAX_MESSAGE_LENGTH = 280;
 const MAX_IMAGES = 8;
+const IMAGE_PREFIX = "__SHOPP_IMAGE__:";
+
+function encodeMessage(text, images) {
+  if (!images?.length) return text;
+  return `${IMAGE_PREFIX}${JSON.stringify({ text, images })}`;
+}
+
+function decodeMessage(value = "") {
+  if (!value.startsWith(IMAGE_PREFIX)) return { text: value, images: [] };
+  try {
+    const parsed = JSON.parse(value.slice(IMAGE_PREFIX.length));
+    const images = Array.isArray(parsed.images)
+      ? parsed.images
+      : parsed.image
+        ? [parsed.image]
+        : [];
+    return { text: parsed.text || "", images };
+  } catch {
+    return { text: value, images: [] };
+  }
+}
 
 function createDefaultAlias() {
   if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -75,9 +96,7 @@ function formatTime(timestamp, language = "es") {
 function Message({ item, myAlias, language }) {
   const mine = item.username === myAlias;
   const timestamp = item.createdAt || item._creationTime;
-  const imageUris = Array.isArray(item.images)
-    ? item.images.map((image) => image?.uri).filter(Boolean)
-    : [];
+  const content = decodeMessage(item.text);
   return (
     <View style={[styles.messageRow, mine && styles.messageRowMine]}>
       <View style={[styles.bubble, mine && styles.bubbleMine]}>
@@ -87,14 +106,14 @@ function Message({ item, myAlias, language }) {
           </Text>
           <Text style={styles.time}>{formatTime(timestamp, language)}</Text>
         </View>
-        {imageUris.length ? (
+        {content.images.length ? (
           <View style={styles.messageImagesPanel}>
-            {imageUris.map((uri, index) => (
+            {content.images.map((uri, index) => (
               <Image
                 key={`${item._id || item.id}-image-${index}`}
                 source={{ uri }}
                 style={
-                  imageUris.length === 1
+                  content.images.length === 1
                     ? styles.messageImageSingle
                     : styles.messageImage
                 }
@@ -103,14 +122,14 @@ function Message({ item, myAlias, language }) {
             ))}
           </View>
         ) : null}
-        {item.text ? (
+        {content.text ? (
           <Text
             style={[
               styles.messageText,
-              imageUris.length > 0 && styles.messageTextAfterImage,
+              content.images.length > 0 && styles.messageTextAfterImage,
             ]}
           >
-            {item.text}
+            {content.text}
           </Text>
         ) : null}
       </View>
@@ -129,7 +148,6 @@ export default function ChatScreen() {
 
   const messages = useQuery(api.chat.listMessages, { room });
   const sendMessage = useMutation(api.chat.sendMessage);
-  const generateImageUploadUrl = useMutation(api.chat.generateImageUploadUrl);
 
   const visibleMessages = useMemo(() => {
     if (!Array.isArray(messages)) return [];
@@ -156,7 +174,7 @@ export default function ChatScreen() {
   const handlePickImages = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
         allowsMultipleSelection: true,
         selectionLimit: MAX_IMAGES,
@@ -182,23 +200,9 @@ export default function ChatScreen() {
               base64: true,
             },
           );
-          if (!resized.base64) return null;
-          const uri = `data:image/jpeg;base64,${resized.base64}`;
-          const padding = resized.base64.endsWith("==")
-            ? 2
-            : resized.base64.endsWith("=")
-              ? 1
-              : 0;
-          return {
-            uri,
-            width: resized.width,
-            height: resized.height,
-            mimeType: "image/jpeg",
-            size: Math.max(
-              0,
-              Math.floor((resized.base64.length * 3) / 4) - padding,
-            ),
-          };
+          return resized.base64
+            ? `data:image/jpeg;base64,${resized.base64}`
+            : null;
         }),
       );
 
@@ -206,7 +210,7 @@ export default function ChatScreen() {
         [...current, ...resizedImages.filter(Boolean)].slice(0, MAX_IMAGES),
       );
     } catch (error) {
-      console.error("[Chat] No se pudieron seleccionar las imÃ¡genes:", error);
+      console.error("[Chat] No se pudieron seleccionar las imágenes:", error);
     }
   }, []);
 
@@ -220,38 +224,10 @@ export default function ChatScreen() {
     if (!canSend) return;
     setSending(true);
     try {
-      const uploadedImages = await Promise.all(
-        selectedImages.map(async (image) => {
-          const uploadUrl = await generateImageUploadUrl();
-          const blob = await fetch(image.uri).then((response) =>
-            response.blob(),
-          );
-          const uploadResponse = await fetch(uploadUrl, {
-            method: "POST",
-            headers: { "Content-Type": image.mimeType },
-            body: blob,
-          });
-          if (!uploadResponse.ok) {
-            throw new Error(
-              `No se pudo subir una imagen (${uploadResponse.status}).`,
-            );
-          }
-          const { storageId } = await uploadResponse.json();
-          return {
-            storageId,
-            mimeType: image.mimeType,
-            width: image.width,
-            height: image.height,
-            size: blob.size || image.size,
-          };
-        }),
-      );
-
       await sendMessage({
         room,
         username: cleanAlias,
-        text: cleanInput,
-        images: uploadedImages.length ? uploadedImages : undefined,
+        text: encodeMessage(cleanInput, selectedImages),
       });
       setInput("");
       setSelectedImages([]);
@@ -265,15 +241,7 @@ export default function ChatScreen() {
     } finally {
       setSending(false);
     }
-  }, [
-    canSend,
-    cleanAlias,
-    cleanInput,
-    generateImageUploadUrl,
-    room,
-    selectedImages,
-    sendMessage,
-  ]);
+  }, [canSend, cleanAlias, cleanInput, room, selectedImages, sendMessage]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -290,8 +258,8 @@ export default function ChatScreen() {
               <Text style={styles.title}>Chat de compras</Text>
               <Text style={styles.subtitle}>
                 {language === "en"
-                  ? `Open room Â· #${room}`
-                  : `Sala abierta Â· #${room}`}
+                  ? `Open room · #${room}`
+                  : `Sala abierta · #${room}`}
               </Text>
             </View>
           </View>
@@ -365,12 +333,12 @@ export default function ChatScreen() {
               />
               <Text style={styles.emptyTitle}>
                 {messages === undefined
-                  ? "Conectando con Convexâ€¦"
-                  : "TodavÃ­a no hay mensajes"}
+                  ? "Conectando con Convex…"
+                  : "Todavía no hay mensajes"}
               </Text>
               <Text style={styles.emptyText}>
                 Abre Shopp en otro dispositivo y usa un alias diferente para
-                probar la conversaciÃ³n en tiempo real.
+                probar la conversación en tiempo real.
               </Text>
             </View>
           }
@@ -383,13 +351,13 @@ export default function ChatScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.imagePreviewContent}
             >
-              {selectedImages.map((image, index) => (
+              {selectedImages.map((uri, index) => (
                 <View
                   key={`selected-image-${index}`}
                   style={styles.imagePreviewItem}
                 >
                   <Image
-                    source={{ uri: image.uri }}
+                    source={{ uri }}
                     style={styles.imagePreview}
                     resizeMode="cover"
                   />
@@ -414,7 +382,7 @@ export default function ChatScreen() {
             onPress={handlePickImages}
             disabled={sending || selectedImages.length >= MAX_IMAGES}
             style={styles.imageButton}
-            accessibilityLabel="AÃ±adir imÃ¡genes"
+            accessibilityLabel="Añadir imágenes"
           >
             <Ionicons name="image-outline" size={23} color="#2563eb" />
           </Pressable>
@@ -423,7 +391,7 @@ export default function ChatScreen() {
             onChangeText={(value) =>
               setInput(value.slice(0, MAX_MESSAGE_LENGTH))
             }
-            placeholder="Escribe un mensajeâ€¦"
+            placeholder="Escribe un mensaje…"
             placeholderTextColor="#9ca3af"
             style={styles.messageInput}
             multiline
@@ -447,7 +415,7 @@ export default function ChatScreen() {
             {input.length}/{MAX_MESSAGE_LENGTH}
           </Text>
           <Text style={styles.footerText}>
-            Pruebas abiertas Â· sin login obligatorio
+            Pruebas abiertas · sin login obligatorio
           </Text>
         </View>
       </KeyboardAvoidingView>
