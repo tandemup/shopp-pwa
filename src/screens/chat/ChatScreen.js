@@ -31,28 +31,6 @@ const ROOMS = [
 ];
 const MAX_MESSAGE_LENGTH = 280;
 const MAX_IMAGES = 8;
-const IMAGE_PREFIX = "__SHOPP_IMAGE__:";
-
-function encodeMessage(text, images) {
-  if (!images?.length) return text;
-  return `${IMAGE_PREFIX}${JSON.stringify({ text, images })}`;
-}
-
-function decodeMessage(value = "") {
-  if (!value.startsWith(IMAGE_PREFIX)) return { text: value, images: [] };
-  try {
-    const parsed = JSON.parse(value.slice(IMAGE_PREFIX.length));
-    const images = Array.isArray(parsed.images)
-      ? parsed.images
-      : parsed.image
-        ? [parsed.image]
-        : [];
-    return { text: parsed.text || "", images };
-  } catch {
-    return { text: value, images: [] };
-  }
-}
-
 function createDefaultAlias() {
   if (Platform.OS === "web" && typeof window !== "undefined") {
     const saved = window.localStorage?.getItem("shopp-chat-alias");
@@ -96,7 +74,12 @@ function formatTime(timestamp, language = "es") {
 function Message({ item, myAlias, language }) {
   const mine = item.username === myAlias;
   const timestamp = item.createdAt || item._creationTime;
-  const content = decodeMessage(item.text);
+  const content = {
+    text: item.text || "",
+    images: Array.isArray(item.images)
+      ? item.images.map((image) => image?.uri).filter(Boolean)
+      : [],
+  };
   return (
     <View style={[styles.messageRow, mine && styles.messageRowMine]}>
       <View style={[styles.bubble, mine && styles.bubbleMine]}>
@@ -148,6 +131,7 @@ export default function ChatScreen() {
 
   const messages = useQuery(api.chat.listMessages, { room });
   const sendMessage = useMutation(api.chat.sendMessage);
+  const generateImageUploadUrl = useMutation(api.chat.generateImageUploadUrl);
 
   const visibleMessages = useMemo(() => {
     if (!Array.isArray(messages)) return [];
@@ -174,7 +158,7 @@ export default function ChatScreen() {
   const handlePickImages = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: false,
         allowsMultipleSelection: true,
         selectionLimit: MAX_IMAGES,
@@ -200,9 +184,20 @@ export default function ChatScreen() {
               base64: true,
             },
           );
-          return resized.base64
-            ? `data:image/jpeg;base64,${resized.base64}`
-            : null;
+          if (!resized.uri) return null;
+
+          const base64Length = resized.base64?.length || 0;
+          const approximateSize = base64Length
+            ? Math.ceil((base64Length * 3) / 4)
+            : 0;
+
+          return {
+            uri: resized.uri,
+            width: resized.width || 256,
+            height: resized.height || 256,
+            mimeType: "image/jpeg",
+            size: approximateSize,
+          };
         }),
       );
 
@@ -222,15 +217,51 @@ export default function ChatScreen() {
 
   const handleSend = useCallback(async () => {
     if (!canSend) return;
+
     setSending(true);
+
     try {
+      const uploadedImages = [];
+
+      for (const image of selectedImages) {
+        const uploadUrl = await generateImageUploadUrl();
+
+        const imageResponse = await fetch(image.uri);
+        const blob = await imageResponse.blob();
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": image.mimeType || "image/jpeg",
+          },
+          body: blob,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`No se pudo subir una imagen (${uploadResponse.status}).`);
+        }
+
+        const { storageId } = await uploadResponse.json();
+
+        uploadedImages.push({
+          storageId,
+          mimeType: image.mimeType || "image/jpeg",
+          width: image.width || 256,
+          height: image.height || 256,
+          size: image.size || blob.size || 0,
+        });
+      }
+
       await sendMessage({
         room,
         username: cleanAlias,
-        text: encodeMessage(cleanInput, selectedImages),
+        text: cleanInput,
+        images: uploadedImages.length ? uploadedImages : undefined,
       });
+
       setInput("");
       setSelectedImages([]);
+
       if (typeof requestAnimationFrame === "function") {
         requestAnimationFrame(() =>
           listRef.current?.scrollToEnd?.({ animated: true }),
@@ -241,7 +272,15 @@ export default function ChatScreen() {
     } finally {
       setSending(false);
     }
-  }, [canSend, cleanAlias, cleanInput, room, selectedImages, sendMessage]);
+  }, [
+    canSend,
+    cleanAlias,
+    cleanInput,
+    room,
+    selectedImages,
+    sendMessage,
+    generateImageUploadUrl,
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -351,13 +390,13 @@ export default function ChatScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.imagePreviewContent}
             >
-              {selectedImages.map((uri, index) => (
+              {selectedImages.map((image, index) => (
                 <View
                   key={`selected-image-${index}`}
                   style={styles.imagePreviewItem}
                 >
                   <Image
-                    source={{ uri }}
+                    source={{ uri: image.uri }}
                     style={styles.imagePreview}
                     resizeMode="cover"
                   />
