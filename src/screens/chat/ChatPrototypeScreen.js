@@ -23,7 +23,12 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 
 import { api } from "@/convex/_generated/api";
-import { I18nText as Text, I18nTextInput as TextInput, tr, useI18n } from "@/src/i18n";
+import {
+  I18nText as Text,
+  I18nTextInput as TextInput,
+  tr,
+  useI18n,
+} from "@/src/i18n";
 import { safeAlert } from "@/src/components/ui/alert/safeAlert";
 import QuickEan13Scanner from "@/src/components/features/scanner/QuickEan13Scanner";
 import { useProductLookupWithCache } from "@/src/hooks/useProductLookupWithCache";
@@ -38,6 +43,7 @@ const DEMO_STORE = {
 };
 
 const MAX_MESSAGE_LENGTH = 280;
+const MESSAGE_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 function distanceToStoreMeters(latitude, longitude) {
   const toRadians = (value) => (value * Math.PI) / 180;
@@ -67,7 +73,29 @@ function formatTime(timestamp, language = "es") {
   }
 }
 
-function MessageBubble({ item, mine }) {
+function formatRemainingTime(item, now, language = "es") {
+  const createdAt = Number(item.createdAt || item._creationTime);
+  const expiresAt = Number(item.expiresAt) || createdAt + MESSAGE_LIFETIME_MS;
+
+  if (!Number.isFinite(expiresAt)) return "";
+
+  const remainingMs = Math.max(0, expiresAt - now);
+  const totalMinutes = Math.ceil(remainingMs / 60000);
+
+  if (totalMinutes <= 0) {
+    return language === "en" ? "deleting soon" : "se borrará pronto";
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const remaining = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+
+  return language === "en"
+    ? `deletes in ${remaining}`
+    : `se borra en ${remaining}`;
+}
+
+function MessageBubble({ item, mine, now }) {
   const { language } = useI18n();
   return (
     <View
@@ -122,6 +150,8 @@ function MessageBubble({ item, mine }) {
         <Text style={styles.messageTime}>
           {mine ? (language === "en" ? "You · " : "Tú · ") : ""}
           {formatTime(item.createdAt || item._creationTime, language)}
+          {" · "}
+          {formatRemainingTime(item, now, language)}
         </Text>
       </View>
     </View>
@@ -141,6 +171,7 @@ export default function ChatPrototypeScreen() {
   const [selectedImages, setSelectedImages] = useState([]);
   const [productDraft, setProductDraft] = useState(null);
   const [productPrice, setProductPrice] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const { lookupWithCache, loading: productLoading } =
     useProductLookupWithCache();
 
@@ -178,6 +209,11 @@ export default function ChatPrototypeScreen() {
     checkLocation();
   }, [checkLocation]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const currentUser = useQuery(api.users.current);
   const messages = useQuery(
     api.chat.listMessages,
@@ -200,7 +236,8 @@ export default function ChatPrototypeScreen() {
         const product = result?.product || {};
         setProductDraft({
           barcode,
-          name: String(product.name || "").trim() ||
+          name:
+            String(product.name || "").trim() ||
             (language === "en" ? `Product ${barcode}` : `Producto ${barcode}`),
           brand: String(product.brand || "").trim(),
         });
@@ -209,7 +246,8 @@ export default function ChatPrototypeScreen() {
         console.error("[ChatPrototypeScreen] product lookup failed", error);
         setProductDraft({
           barcode,
-          name: language === "en" ? `Product ${barcode}` : `Producto ${barcode}`,
+          name:
+            language === "en" ? `Product ${barcode}` : `Producto ${barcode}`,
           brand: "",
         });
         setProductPrice("");
@@ -287,7 +325,15 @@ export default function ChatPrototypeScreen() {
     } finally {
       setSending(false);
     }
-  }, [checkLocation, currentUser, displayAlias, language, sendMessage, sending, text]);
+  }, [
+    checkLocation,
+    currentUser,
+    displayAlias,
+    language,
+    sendMessage,
+    sending,
+    text,
+  ]);
 
   const renderItem = useCallback(
     ({ item }) => {
@@ -302,9 +348,9 @@ export default function ChatPrototypeScreen() {
           .toLowerCase();
       const mine = mineById || mineByAlias;
 
-      return <MessageBubble item={item} mine={mine} />;
+      return <MessageBubble item={item} mine={mine} now={now} />;
     },
-    [currentUserId, displayAlias],
+    [currentUserId, displayAlias, now],
   );
 
   const handlePickImage = useCallback(async () => {
@@ -559,6 +605,7 @@ export default function ChatPrototypeScreen() {
           style={styles.list}
           contentContainerStyle={styles.listContent}
           data={Array.isArray(messages) ? messages : []}
+          extraData={now}
           keyExtractor={(item) => String(item._id)}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
