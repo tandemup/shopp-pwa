@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -93,7 +94,7 @@ function formatTime(timestamp, language = "es") {
   }
 }
 
-function Message({ item, myAlias, language, onDelete, deleting }) {
+function Message({ item, language, onDelete, onImagePress, deleting }) {
   const mine = item.isOwnMessage === true;
   const deletedForUsers = item.isDeletedByUser === true;
   const timestamp = item.createdAt || item._creationTime;
@@ -153,16 +154,25 @@ function Message({ item, myAlias, language, onDelete, deleting }) {
         {content.images.length ? (
           <View style={styles.messageImagesPanel}>
             {content.images.map((uri, index) => (
-              <Image
+              <Pressable
                 key={`${item._id || item.id}-image-${index}`}
-                source={{ uri }}
+                onPress={() => onImagePress?.(uri)}
                 style={
                   content.images.length === 1
                     ? styles.messageImageSingle
                     : styles.messageImage
                 }
-                resizeMode="cover"
-              />
+                accessibilityRole="button"
+                accessibilityLabel={
+                  language === "en" ? "Enlarge image" : "Ampliar imagen"
+                }
+              >
+                <Image
+                  source={{ uri }}
+                  style={styles.messageImageFill}
+                  resizeMode="cover"
+                />
+              </Pressable>
             ))}
           </View>
         ) : null}
@@ -191,6 +201,7 @@ export default function ChatScreen() {
   const [selectedImages, setSelectedImages] = useState([]);
   const [sending, setSending] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState(null);
+  const [expandedImageUri, setExpandedImageUri] = useState(null);
 
   const messages = useQuery(api.chat.listMessages, { room, clientId: chatClientId });
   const sendMessage = useMutation(api.chat.sendMessage);
@@ -384,9 +395,13 @@ export default function ChatScreen() {
 
       const title = language === "en" ? "Delete post" : "Borrar publicación";
       const message =
-        language === "en"
-          ? "Delete this post? It will disappear for users but remain available to administrators."
-          : "¿Quieres borrar esta publicación? Desaparecerá para los usuarios, pero seguirá disponible para los administradores.";
+        item.isDeletedByUser
+          ? language === "en"
+            ? "Permanently delete this post and its images? This action cannot be undone."
+            : "¿Quieres eliminar definitivamente esta publicación y sus imágenes? Esta acción no se puede deshacer."
+          : language === "en"
+            ? "Delete this post? Authors hide their own posts; administrators delete them permanently."
+            : "¿Quieres borrar esta publicación? Los autores ocultan sus propios posts; los administradores los eliminan definitivamente.";
 
       safeAlert(title, message, [
         {
@@ -480,6 +495,7 @@ export default function ChatScreen() {
               myAlias={cleanAlias}
               language={language}
               onDelete={handleDeletePost}
+              onImagePress={setExpandedImageUri}
               deleting={deletingMessageId === item._id}
             />
           )}
@@ -586,6 +602,36 @@ export default function ChatScreen() {
             Pruebas abiertas · sin login obligatorio
           </Text>
         </View>
+
+        <Modal
+          visible={Boolean(expandedImageUri)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setExpandedImageUri(null)}
+        >
+          <View style={styles.imageModalBackdrop}>
+            <Pressable
+              style={styles.imageModalClose}
+              onPress={() => setExpandedImageUri(null)}
+              accessibilityRole="button"
+              accessibilityLabel={language === "en" ? "Close image" : "Cerrar imagen"}
+            >
+              <Ionicons name="close" size={30} color="#ffffff" />
+            </Pressable>
+            <Pressable
+              style={styles.imageModalContent}
+              onPress={() => setExpandedImageUri(null)}
+            >
+              {expandedImageUri ? (
+                <Image
+                  source={{ uri: expandedImageUri }}
+                  style={styles.expandedImage}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </Pressable>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -744,6 +790,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#e5e7eb",
   },
   messageImage: { width: 108, height: 108, backgroundColor: "#e5e7eb" },
+  messageImageFill: { width: "100%", height: "100%" },
+  imageModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.94)",
+  },
+  imageModalContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  expandedImage: { width: "100%", height: "100%" },
+  imageModalClose: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 54 : 18,
+    right: 18,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
   imagePreviewPanel: {
     minHeight: 88,
     paddingVertical: 8,

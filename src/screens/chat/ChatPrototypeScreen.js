@@ -1080,6 +1080,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 17,
   },
+
   messageInputShell: {
     flex: 1,
     height: 30,

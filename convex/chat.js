@@ -88,7 +88,8 @@ export const listMessages = query({
         return {
           ...decorated,
           isOwnMessage: own,
-          canDelete: own && !deletedByUser,
+          canDelete: viewer.isAdmin || (own && !deletedByUser),
+          isAdminViewer: viewer.isAdmin,
           isDeletedByUser: deletedByUser,
         };
       }),
@@ -165,8 +166,24 @@ export const deleteMessage = mutation({
     if (!message) return { ok: true, hidden: false };
 
     const viewer = await getViewer(ctx, args.clientId);
-    if (!isOwnedBy(message, viewer.ownerId)) {
+    const ownMessage = isOwnedBy(message, viewer.ownerId);
+    if (!ownMessage && !viewer.isAdmin) {
       throw new Error("Solo el autor puede borrar esta publicación.");
+    }
+
+    if (viewer.isAdmin) {
+      // El administrador realiza un borrado definitivo, también de los adjuntos.
+      if (Array.isArray(message.images)) {
+        for (const image of message.images) {
+          try {
+            await ctx.storage.delete(image.storageId);
+          } catch (error) {
+            console.warn("[chat.deleteMessage] storage delete failed", error);
+          }
+        }
+      }
+      await ctx.db.delete(args.messageId);
+      return { ok: true, hidden: false, deleted: true };
     }
 
     if (message.status !== "hidden") {
